@@ -3,7 +3,7 @@ import {
   validateAudioFile,
   MAX_FILE_SIZE_BYTES,
   type AudioFileLike,
-} from "../../src/lib/validation/validateAudioFile";
+} from "../../src/lib/validation/validateAudioFile.ts";
 
 // Helpers
 function makeFile(overrides: Partial<AudioFileLike> = {}): AudioFileLike {
