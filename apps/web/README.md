@@ -2,6 +2,20 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## Audio uploads
+
+The Vercel API route at `/api/upload` creates restricted client-upload tokens
+for Vercel Blob. The browser should use `upload()` from `@vercel/blob/client`
+with `handleUploadUrl: "/api/upload"`; the audio bytes go directly to Blob
+after the route validates the filename, content type, and size.
+
+Configure the server-only `BLOB_READ_WRITE_TOKEN` in Vercel (or through the
+Vercel CLI for local API testing). Never prefix this variable with `VITE_` or
+read it from frontend code. The optional `AUDIO_UPLOAD_MAX_SIZE_BYTES`
+environment variable controls the limit and defaults to 50 MiB.
+
+Use `npx vercel dev` when testing the frontend and `/api/upload` together.
+
 # NB: Deployment to Vercel
 
 When changes are made, remember to deploy to Vercel in the following way:

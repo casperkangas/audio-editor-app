@@ -1,43 +1,58 @@
 import { handleUpload } from "@vercel/blob/client";
+import {
+  ALLOWED_AUDIO_CONTENT_TYPES,
+  getMaxUploadSizeBytes,
+  isAllowedAudioContentType,
+  isAllowedAudioFilename,
+} from "./upload.validation";
 
 export default async function handler(request: Request): Promise<Response> {
   if (request.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
 
-  const body = await request.json();
+  try {
+    const body = await request.json();
 
-  const jsonResponse = await handleUpload({
-    body,
-    request,
-    onBeforeGenerateToken: async (pathname) => {
-      const filename = pathname.split("/").pop() ?? "";
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async (pathname) => {
+        if (!isAllowedAudioFilename(pathname)) {
+          throw new Error("Unsupported audio file type");
+        }
 
-      if (!filename || !/\.(wav|mp3|flac|ogg|aac|m4a)$/i.test(filename)) {
-        throw new Error("Unsupported audio file type");
-      }
+        return {
+          allowedContentTypes: [...ALLOWED_AUDIO_CONTENT_TYPES],
+          maximumSizeInBytes: getMaxUploadSizeBytes(),
+          addRandomSuffix: true,
+          tokenPayload: JSON.stringify({
+            purpose: "audio-upload",
+          }),
+        };
+      },
+      onUploadCompleted: async ({ blob }) => {
+        if (!isAllowedAudioContentType(blob.contentType)) {
+          throw new Error("Unsupported audio content type");
+        }
 
-      return {
-        allowedContentTypes: [
-          "audio/wav",
-          "audio/mpeg",
-          "audio/flac",
-          "audio/ogg",
-          "audio/aac",
-          "audio/mp4",
-          "audio/x-m4a",
-        ],
-        maximumSizeInBytes: 50 * 1024 * 1024,
-        addRandomSuffix: true,
-        tokenPayload: JSON.stringify({
-          purpose: "audio-upload",
-        }),
-      };
-    },
-    onUploadCompleted: async ({ blob }) => {
-      console.log("Audio upload completed:", blob.pathname);
-    },
-  });
+        console.info("Audio upload completed", {
+          pathname: blob.pathname,
+        });
+      },
+    });
 
-  return Response.json(jsonResponse);
+    return Response.json(jsonResponse);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Upload request failed";
+    const isClientError = /unsupported|invalid|size|content type|payload/i.test(
+      message,
+    );
+
+    return Response.json(
+      { error: isClientError ? message : "Upload request failed" },
+      { status: isClientError ? 400 : 500 },
+    );
+  }
 }
