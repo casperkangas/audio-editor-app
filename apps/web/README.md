@@ -26,9 +26,9 @@ npm run build
 npx vercel --prod
 ```
 
-# NB:
+# NB: Testing during development
 
-Keep `npm run dev` for frontend-only work. Use `npx vercel dev` when testing frontend + API + Blob together.
+Use `npm run dev` in `apps/web` for frontend-only work. Use `npx vercel dev` in `apps/web` when testing frontend + API + Blob together.
 
 Currently, two official plugins are available:
 
