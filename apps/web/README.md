@@ -12,6 +12,10 @@ npm run build
 npx vercel --prod
 ```
 
+# NB:
+
+Keep `npm run dev` for frontend-only work. Use `npx vercel dev` when testing frontend + API + Blob together.
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
