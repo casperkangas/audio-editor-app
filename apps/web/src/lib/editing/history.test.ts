@@ -183,7 +183,7 @@ describe('undo/redo round-trip', () => {
 describe('resetHistory', () => {
   it('wipes past and future, resets present', () => {
     const op = makeOp();
-    const h  = pushOperation(createHistory(), op);
+    pushOperation(createHistory(), op); // verify push works, but we only test reset
     const r  = resetHistory();
     expect(r.past).toHaveLength(0);
     expect(r.future).toHaveLength(0);

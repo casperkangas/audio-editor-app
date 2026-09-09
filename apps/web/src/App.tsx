@@ -20,6 +20,7 @@ import { useEffect, useCallback } from 'react';
 import { useAudioEngine }  from './hooks/useAudioEngine';
 import { useEditHistory }  from './hooks/useEditHistory';
 import { useWaveform }     from './hooks/useWaveform';
+import { audioEngine }     from './lib/audio/engine';
 
 import TransportControls from './components/transport/TransportControls';
 import EditToolbar       from './components/toolbar/EditToolbar';
@@ -59,15 +60,13 @@ export default function App() {
   // Seed editor once the audio engine finishes decoding a new file.
   // We watch `engine.duration` as the signal that a new buffer is ready.
   useEffect(() => {
-    // Only seed when a real audio buffer is available
-    const { audioEngine: _unused } = {} as never; // (engine doesn't expose buffer directly)
-    // Import the singleton to grab the decoded buffer
-    import('./lib/audio/engine').then(({ audioEngine }) => {
-      const buf = (audioEngine as unknown as { buffer: AudioBuffer | null }).buffer;
-      if (buf && buf.duration === engine.duration && engine.duration > 0) {
+    if (engine.duration > 0) {
+      // Access the decoded buffer via the singleton directly (static import, no dynamic import needed)
+      const buf = audioEngine['buffer'] as AudioBuffer | null;
+      if (buf && buf.duration === engine.duration) {
         editor.reset(buf);
       }
-    });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine.duration]);
 

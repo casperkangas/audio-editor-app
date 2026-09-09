@@ -17,18 +17,6 @@ import type {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-/**
- * Create an OfflineAudioContext large enough to hold `lengthSamples` frames.
- * Falls back gracefully if the context constructor isn't available (tests / SSR).
- */
-function makeOfflineCtx(
-  numberOfChannels: number,
-  lengthSamples: number,
-  sampleRate: number,
-): OfflineAudioContext {
-  return new OfflineAudioContext(numberOfChannels, lengthSamples, sampleRate);
-}
-
 /** Convert a time in seconds to the nearest sample index */
 function timeToSample(seconds: number, sampleRate: number): number {
   return Math.round(seconds * sampleRate);
