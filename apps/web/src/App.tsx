@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useCallback } from "react";
+import { Analytics } from "@vercel/analytics/react";
 
 import { useAudioEngine } from "./hooks/useAudioEngine";
 import { useEditHistory } from "./hooks/useEditHistory";
@@ -203,6 +204,7 @@ export default function App() {
           onExport={handleExport}
         />
       </main>
+      <Analytics />
     </div>
   );
 }
