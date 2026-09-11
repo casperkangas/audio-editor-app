@@ -5,18 +5,18 @@ import {
   isAllowedAudioContentType,
   isAllowedAudioFilename,
 } from "./upload.validation";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-export const config = {
-  runtime: "edge",
-};
-
-export default async function handler(request: Request): Promise<Response> {
+export default async function handler(
+  request: VercelRequest,
+  response: VercelResponse,
+) {
   if (request.method !== "POST") {
-    return Response.json({ error: "Method not allowed" }, { status: 405 });
+    return response.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    const body = await request.json();
+    const body = request.body;
 
     const jsonResponse = await handleUpload({
       body,
@@ -46,7 +46,7 @@ export default async function handler(request: Request): Promise<Response> {
       },
     });
 
-    return Response.json(jsonResponse);
+    return response.status(200).json(jsonResponse);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Upload request failed";
@@ -54,9 +54,8 @@ export default async function handler(request: Request): Promise<Response> {
       message,
     );
 
-    return Response.json(
-      { error: isClientError ? message : "Upload request failed" },
-      { status: isClientError ? 400 : 500 },
-    );
+    return response.status(isClientError ? 400 : 500).json({
+      error: isClientError ? message : "Upload request failed",
+    });
   }
 }
