@@ -1,79 +1,78 @@
-# Quickstart: Validation Guide for the Audio Editor and Converter
-
-## Goal
-
-Validate that the MVP can upload a supported audio file, edit it interactively, preview the output, and export a final file in either the current format or a converted format.
+# Quickstart: Validate Audio Export Infrastructure
 
 ## Prerequisites
 
-- Browser access to the React web app
-- A supported audio file such as WAV, MP3, FLAC, OGG, or AAC
-- A configured Vercel environment with Blob storage enabled
-- A processing environment capable of running FFmpeg jobs
+- Node.js and npm installed.
+- `apps/web` dependencies installed with `npm install`.
+- A Vercel Blob store and `BLOB_READ_WRITE_TOKEN` configured for the API.
+- The selected durable job store and queue/worker dispatch credentials configured.
+- An FFmpeg/ffprobe-capable worker with access to private Blob objects.
+- A valid fixture such as `sample-sounds/example.wav`.
+
+## Local Checks
+
+From `apps/web`:
+
+```sh
+npm test
+npm run lint
+npm run build
+```
+
+These checks cover upload validation and the API validation/state adapters once
+implemented. Worker tests must run in the worker package/runtime with FFmpeg available.
 
 ## Functional Validation Scenarios
 
-### 1. Upload and initial editing session
+## End-to-End Export Scenario
 
-1. Open the app in the browser.
+1. Start the Vite app and the configured API/worker environment.
 2. Upload a supported audio file.
-3. Confirm that the audio loads and the waveform is visible.
-4. Verify that playback, pause, and seek controls are active.
-5. Select a region of the waveform.
-6. Confirm that the selection is highlighted in the editor.
-7. Perform a trim or cut operation.
-8. Verify that the preview reflects the changed audio without altering the original file beyond the current working project state.
+3. Confirm the browser uses `/api/upload` and receives a private Blob upload response;
+   the Blob token must not appear in browser code or network responses.
+4. Make a trim or fade edit and confirm the UI still previews the browser-local result.
+5. Choose `mp3` with an allowed bitrate and submit export.
+6. Confirm `POST /api/exports` returns queued data with a `jobId`.
+7. Poll `GET /api/jobs/{jobId}` until `succeeded` or `failed`.
+8. On success, download the short-lived URL and inspect it with `ffprobe`.
+9. Confirm the container, codec, duration, and extension match the request.
 
-Expected result: the user can work within a single editing session and the app shows the current state clearly.
+Expected result: the API acknowledges quickly, FFmpeg runs only in the worker, progress
+is visible, and the browser downloads a valid output without receiving storage secrets.
 
-### 2. Undo/redo and non-destructive editing
+## Negative and Recovery Scenarios
 
-1. Make a trim or cut operation.
-2. Apply a fade or volume change.
-3. Undo the latest edit.
-4. Undo again to a prior state.
-5. Redo the operation.
-
-Expected result: the editing history behaves predictably and changes are reversible without destroying the original audio source.
-
-### 3. Preview and export
-
-1. Make at least one edit.
-2. Start preview mode.
-3. Confirm the preview playback uses the latest state.
-4. Choose export without conversion.
-5. Start the render/export job.
-6. Wait for completion and download the file.
-
-Expected result: the user receives a valid exported audio result and can identify the exported output in the UI.
-
-### 4. Conversion workflow
-
-1. Choose a different target format such as MP3 or WAV.
-2. Select a suitable quality setting if supported.
-3. Start export.
-4. Wait for job completion.
-5. Download the converted file.
-
-Expected result: the final file is in the requested target format and quality, with a clear success status shown in the UI.
-
-### 5. Failure and recovery path
-
-1. Upload a corrupt, unsupported, or oversized file.
-2. Confirm that validation rejects the file or shows a clear error message.
-3. Retry with a valid file.
-4. Trigger a conversion failure scenario, if available, and confirm that the app reports a meaningful error.
-
-Expected result: the app remains usable and the user can recover without exposing internal technical failures.
+- Unsupported output format: validation error before a job is queued.
+- Out-of-range edit operation: validation error with no worker job.
+- Foreign or nonexistent Blob key: authorization/not-found response without revealing
+  object existence.
+- Second export while one is active: `409` conflict.
+- Worker interruption after claim: recovery or failure by lease policy, without duplicate
+  successful output.
+- Corrupt source fixture: actionable `ffprobe` failure and temporary-file cleanup.
+- Expired output: signed URL stops working and metadata cleanup remains idempotent.
 
 ## Operational Validation
 
-- Confirm Blob uploads are direct from the browser and not unnecessarily relayed through the application server.
-- Confirm exported files are generated in a background job and not on the interactive UI thread.
-- Confirm progress messages update while the export job runs.
+- Confirm Blob uploads are direct from the browser and not relayed through the API.
+- Confirm exported files are generated in a background worker, never in an API handler.
+- Confirm progress updates and terminal states survive API process restarts.
 - Confirm stale temporary artifacts are cleaned up after success or failure.
-- Confirm invalid or malicious inputs are rejected before they reach the processing stage.
+- Confirm invalid or malicious inputs are rejected before worker dispatch.
 
 ## Success Criteria for the Quickstart
 
-The feature is considered ready for implementation handoff when all scenarios above can be executed successfully and the app presents clear user feedback during upload, editing, export, and errors.
+The infrastructure handoff is ready when the scenarios above pass and the app presents
+clear feedback during upload, editing, export, and errors.
+
+## Ownership Handoff
+
+- Casper: API routes, Blob access policy, job-store/queue adapters, worker deployment,
+  and retention configuration.
+- Jonas: serialization of the edit plan and browser state contract feeding export.
+- Tomas: export controls, progress states, retry/download interaction, and error copy.
+- Paul-Henrik: route/worker contract tests, FFmpeg fixture checks, and CI gates.
+
+See [data-model.md](data-model.md) and
+[contracts/audio-processing-contract.md](contracts/audio-processing-contract.md) for
+the authoritative fields and HTTP behavior.
