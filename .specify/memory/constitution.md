@@ -1,8 +1,8 @@
 <!--
 Sync Impact Report:
-- Version change: 0.0.0 → 1.0.0
-- Modified principles: none → I. User-Centered Simplicity, II. Architecture Boundaries and Non-Destructive Workflows, III. Security, Privacy, and Resource Stewardship, IV. Responsive, Accessible, and Maintainable UX, V. Risk-Driven Delivery and Deployment Readiness
-- Added sections: Additional Constraints, Development Workflow
+- Version change: 1.0.0 → 1.1.0
+- Modified principles: none
+- Added sections: Team Ownership and Scope Boundaries; AI Change Escalation
 - Removed sections: none
 - Follow-up TODOs: none
 -->
@@ -53,6 +53,14 @@ The architecture MUST remain testable, maintainable, and deliberately scoped. Un
 - Product decisions MUST be traceable to user value, operational constraints, and stated product requirements, not to abstract technical preferences alone.
 - Significant technical risks MUST be recorded and addressed prior to implementation so that architecture decisions remain defendable and reviewable.
 
+### Team Ownership and Scope Boundaries
+
+- Casper owns Vercel deployments, Vercel Blob storage configuration, and the backend API architecture. Deployment configuration, storage buckets, and API routes MUST NOT be modified without Casper’s involvement.
+- Paul-Henrik owns testing infrastructure, validation logic, and CI/CD pipelines. Work with Paul-Henrik MUST focus exclusively on test coverage, validation rules, and deployment pipelines.
+- Tomas owns the frontend visual aesthetic and music player interface. Work with Tomas MUST focus on React UI components, CSS, animations, and visual layouts.
+- Jonas owns application logic, state management, and core functionality supporting the frontend. Work with Jonas MUST focus on audio processing logic, React state management, and functional algorithms.
+- A change that crosses a team member’s responsibility boundary MUST identify the affected owner and obtain explicit collaboration before implementation.
+
 ## Development Workflow
 
 - Every feature and architectural decision MUST be justified against the product requirements in the spec and the governing principles in this constitution.
@@ -60,6 +68,14 @@ The architecture MUST remain testable, maintainable, and deliberately scoped. Un
 - Implementation reviews MUST verify that security, privacy, performance, and maintainability concerns are addressed before a change is considered complete.
 - Major architecture changes MUST be accompanied by a risk review that documents assumptions, critical constraints, and the expected impact on user experience and deployment behavior.
 - The team MUST prefer explicit, reviewable solutions over hidden workarounds, undocumented assumptions, or speculative performance optimizations.
+
+### AI Change Escalation
+
+AI-assisted work MUST respect the team ownership boundaries in this constitution. When a
+requested change crosses into another owner’s domain, the AI MUST explicitly warn the
+requesting team member, identify the affected owner, and defer that portion of the work
+until the appropriate collaboration is established. The AI MUST NOT silently generate or
+modify artifacts outside the requesting member’s scope.
 
 ## Governance
 
@@ -69,4 +85,4 @@ Amendments MUST document the reason for the change, identify affected principles
 
 All feature work MUST be checked for compliance with this constitution before it is considered complete. Complexity, architectural drift, and security/privacy gaps MUST be called out early and resolved before advancing to implementation or release.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-31 | **Last Amended**: 2026-08-31
+**Version**: 1.1.0 | **Ratified**: 2026-08-31 | **Last Amended**: 2026-09-12
