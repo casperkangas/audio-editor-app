@@ -4,20 +4,23 @@
 
 This contract defines the interfaces between the React frontend, the upload orchestration layer, and the audio processing backend for the MVP audio editor.
 
-## 1. Upload URL Request
+## 1. Client Upload Token Request
 
 ### Request
 
 ```http
-POST /api/upload-url
+POST /api/upload
 Content-Type: application/json
 ```
 
 ```json
 {
-  "filename": "example.wav",
-  "contentType": "audio/wav",
-  "sizeBytes": 10485760
+  "type": "blob.generate-client-token",
+  "payload": {
+    "pathname": "example.wav",
+    "contentType": "audio/wav",
+    "size": 10485760
+  }
 }
 ```
 
@@ -25,18 +28,28 @@ Content-Type: application/json
 
 ```json
 {
-  "uploadUrl": "https://blob.example.com/presigned-url",
-  "objectKey": "uploads/uuid/example.wav",
-  "expiresAt": "2026-08-31T12:00:00Z",
-  "maxSizeBytes": 52428800
+  "type": "blob.generate-client-token",
+  "clientToken": "server-generated-client-token"
 }
 ```
 
 ### Behavior
 
-- Returns a signed or restricted upload URL for direct Blob upload.
-- Validates filename, content type, and request limits.
+- Generates a restricted client token using the server-only Blob credentials.
+- Validates the pathname extension and restricts content types and file size.
+- The browser uses this token to upload the file directly to Vercel Blob.
+- The `BLOB_READ_WRITE_TOKEN` is never returned to or imported by frontend code.
 - Rejects invalid or oversized input before upload begins.
+
+### Browser usage
+
+```ts
+await upload("example.wav", file, {
+  access: "private",
+  handleUploadUrl: "/api/upload",
+  contentType: file.type,
+});
+```
 
 ## 2. Export Job Creation
 

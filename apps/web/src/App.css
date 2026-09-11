@@ -1,17 +1,23 @@
 /* ── Reset & base ─────────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 :root {
-  --bg:          #0f0f1a;
-  --surface:     #1a1a2e;
-  --surface2:    #16213e;
-  --accent:      #4ecca3;
-  --accent2:     #e94560;
-  --text:        #eaeaea;
-  --text-muted:  #888;
-  --border:      #2a2a4a;
-  --radius:      8px;
-  --font:        'Inter', system-ui, sans-serif;
+  --bg: #0f0f1a;
+  --surface: #1a1a2e;
+  --surface2: #16213e;
+  --accent: #4ecca3;
+  --accent2: #e94560;
+  --text: #eaeaea;
+  --text-muted: #888;
+  --border: #2a2a4a;
+  --radius: 8px;
+  --font: "Inter", system-ui, sans-serif;
 }
 
 body {
@@ -96,7 +102,10 @@ body {
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
   white-space: nowrap;
 }
 
@@ -145,7 +154,9 @@ body {
   border: 2px dashed var(--border);
   border-radius: var(--radius);
   margin: 0.75rem;
-  transition: border-color 0.2s, background 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
   flex: 1;
 }
 
@@ -156,7 +167,9 @@ body {
   outline: none;
 }
 
-.upload-icon { font-size: 2.5rem; }
+.upload-icon {
+  font-size: 2.5rem;
+}
 
 .upload-label {
   font-size: 0.95rem;
@@ -195,7 +208,11 @@ body {
   animation: spin 0.7s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .waveform-error {
   color: var(--accent2);
@@ -231,7 +248,9 @@ body {
   color: var(--text);
   font-size: 1rem;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .transport-btn:hover:not(:disabled) {
@@ -300,7 +319,10 @@ body {
   cursor: pointer;
 }
 
-.export-select:disabled { opacity: 0.4; cursor: not-allowed; }
+.export-select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 .export-btn {
   padding: 0.45rem 1.1rem;
@@ -314,8 +336,13 @@ body {
   transition: opacity 0.15s;
 }
 
-.export-btn:hover:not(:disabled) { opacity: 0.85; }
-.export-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.export-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+.export-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 
 .export-hint {
   width: 100%;
@@ -325,7 +352,13 @@ body {
 
 /* ── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
-  .app-main { padding: 0.75rem; }
-  .toolbar-group--history { margin-left: 0; }
-  .edit-toolbar { gap: 0.375rem; }
+  .app-main {
+    padding: 0.75rem;
+  }
+  .toolbar-group--history {
+    margin-left: 0;
+  }
+  .edit-toolbar {
+    gap: 0.375rem;
+  }
 }
