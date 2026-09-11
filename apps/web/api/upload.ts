@@ -6,7 +6,11 @@ import {
   isAllowedAudioFilename,
 } from "./upload.validation";
 
-export async function POST(request: Request): Promise<Response> {
+export const config = {
+  runtime: "edge",
+};
+
+export default async function handler(request: Request): Promise<Response> {
   if (request.method !== "POST") {
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
