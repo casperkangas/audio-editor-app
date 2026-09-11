@@ -22,8 +22,8 @@ description: "Actionable tasks for the asynchronous audio export API, Vercel Blo
 
 - [x] T001 Create the API support directory `apps/web/api/_lib/` described in `specs/001-audio-editor-converter/plan.md`; leave `workers/audio-export/` creation and implementation to the designated worker owner.
 - [x] T002 [P] Add server-only environment variable documentation for `BLOB_READ_WRITE_TOKEN`, job-store credentials, queue credentials, `AUDIO_UPLOAD_MAX_SIZE_BYTES`, and retention limits in `apps/web/README.md`.
-- [x] T003 [P] Confirm `apps/web/package.json` contains the required `@vercel/blob` and `@vercel/node` dependencies and record any queue/job-store SDK additions needed by the selected provider.
-- [x] T004 [P] Define the provider-neutral job-store and queue adapter interfaces in `apps/web/api/_lib/jobs.ts` and `apps/web/api/_lib/queue.ts`, including atomic claim, compare-and-set update, lease expiry, and dispatch-by-job-ID operations.
+- [ ] T003 [P] Confirm `apps/web/package.json` contains the required `@vercel/blob` and `@vercel/node` dependencies and record any queue/job-store SDK additions needed by the selected provider.
+- [ ] T004 [P] Define the provider-neutral job-store and queue adapter interfaces in `apps/web/api/_lib/jobs.ts` and `apps/web/api/_lib/queue.ts`, including atomic claim, compare-and-set update, lease expiry, and dispatch-by-job-ID operations.
 
 ---
 
@@ -33,13 +33,13 @@ description: "Actionable tasks for the asynchronous audio export API, Vercel Blo
 
 **CRITICAL**: User-story tasks must not begin until this phase is complete.
 
-- [x] T005 [P] Define the canonical export request, settings, status, stage, and error-code schemas in `apps/web/api/_lib/export.validation.ts` from `contracts/audio-processing-contract.md`.
-- [x] T006 [P] Implement private Blob object lookup and short-lived download URL helpers in `apps/web/api/_lib/blob.ts`, rejecting arbitrary keys and enforcing project/session ownership.
-- [x] T007 Implement edit-operation validation in `apps/web/api/_lib/export.validation.ts` for allowed operation types, finite numeric parameters, duration bounds, operation count, and normalized immutable snapshots.
-- [x] T008 Implement format and quality validation in `apps/web/api/_lib/export.validation.ts` for `wav`, `mp3`, `flac`, `ogg`, and `aac`, including lossless/lossy bitrate rules and server-derived content types/extensions.
-- [x] T009 [P] Define stable API error mapping and redacted user-facing messages in `apps/web/api/_lib/export.validation.ts` and `apps/web/api/_lib/errors.ts`; never expose Blob credentials, worker logs, or raw FFmpeg output.
-- [x] T010 [P] Add contract fixtures for valid requests, invalid operations, unsupported formats, invalid quality settings, unauthorized object keys, and terminal job responses in `apps/web/tests/contract/export.fixtures.ts`.
-- [x] T011 Verify the existing direct-upload route in `apps/web/api/upload.ts` continues to use private Vercel Blob access, random suffixes, the configured size limit, and server-only credentials; update only documented contract mismatches.
+- [ ] T005 [P] Define the canonical export request, settings, status, stage, and error-code schemas in `apps/web/api/_lib/export.validation.ts` from `contracts/audio-processing-contract.md`.
+- [ ] T006 [P] Implement private Blob object lookup and short-lived download URL helpers in `apps/web/api/_lib/blob.ts`, rejecting arbitrary keys and enforcing project/session ownership.
+- [ ] T007 Implement edit-operation validation in `apps/web/api/_lib/export.validation.ts` for allowed operation types, finite numeric parameters, duration bounds, operation count, and normalized immutable snapshots.
+- [ ] T008 Implement format and quality validation in `apps/web/api/_lib/export.validation.ts` for `wav`, `mp3`, `flac`, `ogg`, and `aac`, including lossless/lossy bitrate rules and server-derived content types/extensions.
+- [ ] T009 [P] Define stable API error mapping and redacted user-facing messages in `apps/web/api/_lib/export.validation.ts` and `apps/web/api/_lib/errors.ts`; never expose Blob credentials, worker logs, or raw FFmpeg output.
+- [ ] T010 [P] Add contract fixtures for valid requests, invalid operations, unsupported formats, invalid quality settings, unauthorized object keys, and terminal job responses in `apps/web/tests/contract/export.fixtures.ts`.
+- [ ] T011 Verify the existing direct-upload route in `apps/web/api/upload.ts` continues to use private Vercel Blob access, random suffixes, the configured size limit, and server-only credentials; update only documented contract mismatches.
 
 **Checkpoint**: API schemas, private Blob access, error mapping, and provider adapters are ready; no request handler performs FFmpeg work.
 
@@ -59,11 +59,11 @@ description: "Actionable tasks for the asynchronous audio export API, Vercel Blo
 
 ### Casper Implementation for User Story 2
 
-- [x] T015 [US2] Implement project/session ownership lookup and export-job creation in `apps/web/api/_lib/jobs.ts`, storing the source Blob key, source revision, immutable edit plan, settings, status, stage, progress, retention deadline, and session binding.
-- [x] T016 [US2] Implement `POST /api/exports` in `apps/web/api/exports.ts` to authorize the project, validate the source object and edit snapshot, reject a second active job, persist the job, dispatch only the job ID, and return queued status.
-- [x] T017 [US2] Implement `GET /api/jobs/[jobId]` in `apps/web/api/jobs/[jobId].ts` to authorize the caller, return a bounded status read model, and sign a short-lived download URL only for a successful terminal job.
-- [x] T018 [US2] Add idempotent worker callback/update methods to `apps/web/api/_lib/jobs.ts` for claim, progress, success, and failure updates, ensuring stale retries cannot overwrite a successful result.
-- [x] T019 [US2] Document the worker-facing dispatch and completion payloads in `specs/001-audio-editor-converter/contracts/audio-processing-contract.md`; hand off `workers/audio-export/worker.ts`, `ffmpeg.ts`, `render-plan.ts`, and `cleanup.ts` implementation to the designated worker owner before integration.
+- [ ] T015 [US2] Implement project/session ownership lookup and export-job creation in `apps/web/api/_lib/jobs.ts`, storing the source Blob key, source revision, immutable edit plan, settings, status, stage, progress, retention deadline, and session binding.
+- [ ] T016 [US2] Implement `POST /api/exports` in `apps/web/api/exports.ts` to authorize the project, validate the source object and edit snapshot, reject a second active job, persist the job, dispatch only the job ID, and return queued status.
+- [ ] T017 [US2] Implement `GET /api/jobs/[jobId]` in `apps/web/api/jobs/[jobId].ts` to authorize the caller, return a bounded status read model, and sign a short-lived download URL only for a successful terminal job.
+- [ ] T018 [US2] Add idempotent worker callback/update methods to `apps/web/api/_lib/jobs.ts` for claim, progress, success, and failure updates, ensuring stale retries cannot overwrite a successful result.
+- [ ] T019 [US2] Document the worker-facing dispatch and completion payloads in `specs/001-audio-editor-converter/contracts/audio-processing-contract.md`; hand off `workers/audio-export/worker.ts`, `ffmpeg.ts`, `render-plan.ts`, and `cleanup.ts` implementation to the designated worker owner before integration.
 
 ### Delegated Frontend Handoff for User Story 2
 
@@ -204,10 +204,11 @@ Task T029: Tomas wires conversion progress and retry states
 
 ## Ownership Notes
 
-- **Casper**: Implement T001-T019, T022-T027, T030-T039 where they touch API routes, Blob access/configuration, job metadata/queue adapters, endpoint contracts, infrastructure documentation, OR the FFmpeg worker implementation (`workers/audio-export/*`).
+- **Casper**: Implement T001-T019, T022-T027, T030-T039 where they touch API routes, Blob access/configuration, job metadata/queue adapters, endpoint contracts, or infrastructure documentation.
 - **Tomas**: Implement delegated UI tasks T020, T021, T028, and T029 in the existing export components; these tasks do not authorize API or Blob changes.
 - **Jonas**: Own browser edit-plan serialization and core application state needed to produce the `operations` and `sourceRevision` payload consumed by T016.
 - **Paul-Henrik**: Own CI/test infrastructure changes and test-suite pipeline integration; Casper's API contract tests remain scoped to the route behavior.
+- **Worker owner**: Implement `workers/audio-export/*` against the dispatch and completion contracts documented by T019.
 
 ## Completion Criteria
 
