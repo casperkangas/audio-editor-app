@@ -15,6 +15,7 @@ Editing is non-destructive and runs entirely in the browser. Final rendering and
 
 ```
 swcon2627/
+├── .gitlab/                      # CI pipeline
 ├── .github/
 │   └── skills/                   # Skillset for AI tools
 │       ├── speckit-analyze/
