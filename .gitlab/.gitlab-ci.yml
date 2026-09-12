@@ -28,7 +28,6 @@ lint:
   needs: [install]
   script:
     - cd apps/web && npm run lint
-  when: manual
 
 test:
   stage: test
@@ -39,7 +38,6 @@ test:
     when: always
     reports:
       junit: apps/web/test-results.xml
-  when: manual
 
 build:
   stage: build
@@ -50,4 +48,3 @@ build:
     paths:
       - apps/web/dist/
     expire_in: 1 week
-  when: manual
