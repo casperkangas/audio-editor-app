@@ -1,6 +1,8 @@
 # Gitlab CI file
 # Includes four stages: install, lint, test, build.
 # All are manual and before merging into main, run the tests for validation.
+default:
+  image: node:latest
 
 stages:
   - install
