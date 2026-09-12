@@ -1,5 +1,8 @@
+# Gitlab CI file
+# Includes four stages: install, lint, test, build.
+# All are manual and before merging into main, run the tests for validation.
 default:
-  image: node:20
+  image: node:latest
 
 stages:
   - install
@@ -25,7 +28,6 @@ lint:
   needs: [install]
   script:
     - cd apps/web && npm run lint
-  when: manual
 
 test:
   stage: test
@@ -36,7 +38,6 @@ test:
     when: always
     reports:
       junit: apps/web/test-results.xml
-  when: manual
 
 build:
   stage: build
@@ -47,4 +48,3 @@ build:
     paths:
       - apps/web/dist/
     expire_in: 1 week
-  when: manual
