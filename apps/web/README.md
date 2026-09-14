@@ -24,15 +24,19 @@ all of them out of `apps/web/src/`, browser bundles, and any variable prefixed w
 | -------------------------------- | ---------------------------- | --------------------------------------------------------------------- |
 | `BLOB_READ_WRITE_TOKEN`          | Vercel API and export worker | Read/write private source and generated audio objects in Vercel Blob. |
 | `AUDIO_UPLOAD_MAX_SIZE_BYTES`    | Upload API                   | Maximum upload size; defaults to 50 MiB when unset or invalid.        |
-| `JOB_STORE_URL`                  | API and export worker        | Connection endpoint for durable export-job metadata and status.       |
-| `JOB_STORE_TOKEN`                | API and export worker        | Server credential for the durable job store.                          |
-| `EXPORT_QUEUE_URL`               | Export API and worker        | Queue or dispatch endpoint for job IDs.                               |
-| `EXPORT_QUEUE_TOKEN`             | Export API and worker        | Server credential for queue dispatch/consumption.                     |
+| `JOB_STORE_URL`                  | API and export worker        | Redis connection URL for durable export-job metadata and status.      |
+| `JOB_STORE_TOKEN`                | API and export worker        | Optional Redis provider credential when the URL does not contain it.  |
+| `EXPORT_QUEUE_URL`               | Export API and worker        | Redis connection URL for job-ID queue dispatch and consumption.       |
+| `EXPORT_QUEUE_TOKEN`             | Export API and worker        | Optional Redis provider credential when the URL does not contain it.  |
 | `AUDIO_SOURCE_RETENTION_SECONDS` | Cleanup process              | Retention window for private source objects.                          |
 | `AUDIO_OUTPUT_RETENTION_SECONDS` | Cleanup process              | Retention window for generated output objects and metadata.           |
 
-The job-store and queue variables are reserved for the provider selected during
-implementation. Do not commit their values or add them to client-visible configuration.
+Redis is the selected Phase 1 provider for both the job store and export queue. The
+provider-neutral adapters in `apps/web/api/_lib/jobs.ts` and
+`apps/web/api/_lib/queue.ts` must use atomic Redis operations for claims and
+compare-and-set updates. `JOB_STORE_URL` and `EXPORT_QUEUE_URL` may point to the
+same Redis instance, but their logical namespaces must remain separate. Do not
+commit their values or add them to client-visible configuration.
 
 ### Vercel and Vercel Blob setup required outside the repository
 
@@ -41,8 +45,9 @@ dashboard or CLI actions:
 
 1. Create or select a Vercel Blob store and copy its read/write token into the
    server-only `BLOB_READ_WRITE_TOKEN` variable for the required environments.
-2. Add the job-store and queue provider credentials as server-only Vercel environment
-   variables after selecting those providers.
+2. Provision a Redis instance with persistence enabled and configure its connection
+   URL in both `JOB_STORE_URL` and `EXPORT_QUEUE_URL`; provide any separate provider
+   credential through the matching `*_TOKEN` variables.
 3. Configure the retention variables and upload limit per environment, then redeploy
    so changed environment variables are available to API functions.
 4. Configure the external audio-export worker with the same Blob token, job-store

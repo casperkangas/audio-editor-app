@@ -22,8 +22,8 @@ description: "Actionable tasks for the asynchronous audio export API, Vercel Blo
 
 - [x] T001 Create the API support directory `apps/web/api/_lib/` described in `specs/001-audio-editor-converter/plan.md`; leave `workers/audio-export/` creation and implementation to the designated worker owner.
 - [x] T002 [P] Add server-only environment variable documentation for `BLOB_READ_WRITE_TOKEN`, job-store credentials, queue credentials, `AUDIO_UPLOAD_MAX_SIZE_BYTES`, and retention limits in `apps/web/README.md`.
-- [ ] T003 [P] Confirm `apps/web/package.json` contains the required `@vercel/blob` and `@vercel/node` dependencies and record any queue/job-store SDK additions needed by the selected provider.
-- [ ] T004 [P] Define the provider-neutral job-store and queue adapter interfaces in `apps/web/api/_lib/jobs.ts` and `apps/web/api/_lib/queue.ts`, including atomic claim, compare-and-set update, lease expiry, and dispatch-by-job-ID operations.
+- [x] T003 [P] Confirm `apps/web/package.json` contains the required `@vercel/blob` and `@vercel/node` dependencies and record any queue/job-store SDK additions needed by the selected provider.
+- [x] T004 [P] Define the provider-neutral job-store and queue adapter interfaces in `apps/web/api/_lib/jobs.ts` and `apps/web/api/_lib/queue.ts`, including atomic claim, compare-and-set update, lease expiry, and dispatch-by-job-ID operations.
 
 ---
 
