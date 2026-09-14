@@ -1,9 +1,9 @@
-import { useRef, useCallback, useState } from 'react'
+﻿import { useRef, useCallback, useState } from 'react'
 import { useEditor } from './lib/useEditor'
 import type { SelectionRegion } from './lib/types'
 import './App.css'
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+// ÔöÇÔöÇ Helpers ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 function peaksToHeights(peaks: Float32Array | null, count: number): number[] {
   if (!peaks || peaks.length === 0) return Array(count).fill(20)
@@ -23,7 +23,7 @@ function formatTime(seconds: number): string {
 
 const BAR_COUNT = 90
 
-// ── App ───────────────────────────────────────────────────────────────────
+// ÔöÇÔöÇ App ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
 function App() {
   const editor        = useEditor()
@@ -36,7 +36,7 @@ function App() {
     void editor.loadFile(file)
   }
 
-  // ── Waveform interaction ──────────────────────────────────────────────
+  // ÔöÇÔöÇ Waveform interaction ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
   const getTimeFromEvent = useCallback(
     (e: React.MouseEvent<HTMLDivElement>): number => {
@@ -76,7 +76,7 @@ function App() {
     dragStart.current = null
   }, [])
 
-  // ── Derived values ────────────────────────────────────────────────────
+  // ÔöÇÔöÇ Derived values ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
   const bars          = peaksToHeights(editor.peaks, BAR_COUNT)
   const positionPct   = editor.duration > 0 ? (editor.currentTime / editor.duration) * 100 : 0
@@ -89,7 +89,7 @@ function App() {
   const isPlaying     = editor.playbackState === 'playing'
   const hasFile       = editor.fileName !== ''
 
-  // ── Render ────────────────────────────────────────────────────────────
+  // ÔöÇÔöÇ Render ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
   return (
     <main className="app-shell">
@@ -97,7 +97,7 @@ function App() {
       {/* Top bar */}
       <header className="topbar">
         <a className="brand" href="/" aria-label="Sonicraft home">
-          <span className="brand-mark">⌁</span>
+          <span className="brand-mark">Ôîü</span>
           <span>Sonicraft</span>
         </a>
         <div className="topbar-actions">
@@ -120,7 +120,7 @@ function App() {
             <p className="lede">Trim, polish, and convert audio right in your browser.</p>
           </div>
           <div className="privacy-note">
-            <span className="lock">⌑</span>
+            <span className="lock">Ôîæ</span>
             <span>
               <strong>Private by default</strong><br />
               Your audio stays in this session.
@@ -131,7 +131,7 @@ function App() {
         {/* Error banner */}
         {editor.error && (
           <div className="notice visible" role="alert" style={{ marginBottom: '16px', color: '#c0392b' }}>
-            <span>⚠</span>
+            <span>ÔÜá</span>
             {editor.error}
             <button className="text-button" style={{ marginLeft: '12px' }} onClick={editor.dismissError}>
               Dismiss
@@ -157,7 +157,7 @@ function App() {
               hidden
               onChange={(e) => handleFile(e.target.files?.[0])}
             />
-            <div className="upload-glyph">↑</div>
+            <div className="upload-glyph">Ôåæ</div>
             <h2>Drop an audio file here</h2>
             <p>or choose a file from your device</p>
             <button
@@ -165,17 +165,17 @@ function App() {
               type="button"
               onClick={(e) => { e.stopPropagation(); fileInput.current?.click() }}
             >
-              Choose audio file <span>→</span>
+              Choose audio file <span>ÔåÆ</span>
             </button>
-            <p className="file-hint">MP3, WAV, FLAC, OGG, M4A <span>·</span> up to 200 MB</p>
+            <p className="file-hint">MP3, WAV, FLAC, OGG, M4A <span>┬À</span> up to 200 MB</p>
           </div>
         )}
 
         {/* Loading */}
         {editor.loading && (
           <div className="upload-card" style={{ minHeight: 180, gap: '14px' }}>
-            <div className="upload-glyph">↻</div>
-            <p>Decoding audio…</p>
+            <div className="upload-glyph">Ôå╗</div>
+            <p>Decoding audioÔÇª</p>
           </div>
         )}
 
@@ -186,10 +186,10 @@ function App() {
             {/* File bar */}
             <div className="file-bar">
               <div className="file-title">
-                <span className="audio-icon">◖</span>
+                <span className="audio-icon">Ôùû</span>
                 <div>
                   <strong>{editor.fileName}</strong>
-                  <span>{formatTime(editor.duration)} · decoded</span>
+                  <span>{formatTime(editor.duration)} ┬À decoded</span>
                 </div>
               </div>
               <button className="text-button" onClick={editor.clearFile}>Replace file</button>
@@ -205,7 +205,7 @@ function App() {
               </div>
               <div
                 className="waveform"
-                aria-label="Audio waveform – drag to select a region, click to seek"
+                aria-label="Audio waveform ÔÇô drag to select a region, click to seek"
                 role="img"
                 onMouseDown={handleWaveformMouseDown}
                 onMouseMove={handleWaveformMouseMove}
@@ -235,7 +235,7 @@ function App() {
                   style={{ left: `${selStartPct}%` }}
                   aria-live="polite"
                 >
-                  Selected · {formatTime(selDuration)}
+                  Selected ┬À {formatTime(selDuration)}
                 </div>
               )}
             </div>
@@ -247,17 +247,17 @@ function App() {
                 onClick={isPlaying ? editor.pause : editor.play}
                 aria-label={isPlaying ? 'Pause' : 'Play'}
               >
-                {isPlaying ? 'Ⅱ' : '▶'}
+                {isPlaying ? 'Ôàí' : 'ÔûÂ'}
               </button>
               <span className="timecode">
                 {formatTime(editor.currentTime)} <span>/ {formatTime(editor.duration)}</span>
               </span>
               <div className="transport-actions">
                 <button className="tool-button" onClick={editor.undoLast} disabled={!editor.canUndo} aria-label="Undo">
-                  <span>↶</span> Undo
+                  <span>ÔåÂ</span> Undo
                 </button>
                 <button className="tool-button" onClick={editor.redoLast} disabled={!editor.canRedo} aria-label="Redo">
-                  <span>↷</span> Redo
+                  <span>ÔåÀ</span> Redo
                 </button>
                 <span className="divider" />
                 <span className="volume-control">
@@ -267,13 +267,13 @@ function App() {
                     onClick={editor.applyVolumeUp}
                     disabled={!editor.selection}
                     title="Increase volume of selection (+20%)"
-                  >▲</button>
+                  >Ôû▓</button>
                   <button
                     className="tool-button"
                     onClick={editor.applyVolumeDown}
                     disabled={!editor.selection}
-                    title="Decrease volume of selection (−20%)"
-                  >▼</button>
+                    title="Decrease volume of selection (ÔêÆ20%)"
+                  >Ôû╝</button>
                 </span>
               </div>
             </div>
@@ -299,7 +299,7 @@ function App() {
         {/* Bottom row */}
         <div className="bottom-row">
           <div className={`notice ${editor.notice ? 'visible' : ''}`} aria-live="polite">
-            <span>✦</span>{editor.notice ?? ' '}
+            <span>Ô£ª</span>{editor.notice ?? ' '}
           </div>
           <button
             className="export-button"
@@ -307,7 +307,7 @@ function App() {
             disabled={!hasFile}
             aria-label="Export audio"
           >
-            Export audio <span>↗</span>
+            Export audio <span>Ôåù</span>
           </button>
         </div>
 
@@ -332,10 +332,10 @@ function App() {
             </label>
             <label>
               Quality
-              <select defaultValue="High · 256 kbps">
-                <option>High · 256 kbps</option>
-                <option>Standard · 192 kbps</option>
-                <option>Compact · 128 kbps</option>
+              <select defaultValue="High ┬À 256 kbps">
+                <option>High ┬À 256 kbps</option>
+                <option>Standard ┬À 192 kbps</option>
+                <option>Compact ┬À 128 kbps</option>
               </select>
             </label>
             <div className="panel-actions">
@@ -348,7 +348,7 @@ function App() {
                   console.info('[export] queued')
                 }}
               >
-                Start export <span>→</span>
+                Start export <span>ÔåÆ</span>
               </button>
             </div>
           </div>
@@ -357,10 +357,12 @@ function App() {
       </section>
 
       <footer>
-        <span>Sonicraft <span className="footer-dot">·</span> Browser audio editor</span>
-        <span>No account required <span className="footer-dot">·</span> Your files stay private</span>
+        <span>Sonicraft <span className="footer-dot">┬À</span> Browser audio editor</span>
+        <span>No account required <span className="footer-dot">┬À</span> Your files stay private</span>
       </footer>
 
     </main>
   )
 }
+
+export default App
