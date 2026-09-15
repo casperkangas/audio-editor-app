@@ -70,6 +70,22 @@ export const EXPORT_ERROR_CODES = [
 
 export type ExportErrorCode = (typeof EXPORT_ERROR_CODES)[number];
 
+export const EXPORT_ERROR_MESSAGES: Readonly<Record<ExportErrorCode, string>> =
+  {
+    INVALID_REQUEST: "The export request is invalid.",
+    UNAUTHORIZED: "You are not authorized to access this export.",
+    SOURCE_NOT_FOUND: "The source audio is no longer available.",
+    UNSUPPORTED_FORMAT: "The selected export format is not supported.",
+    INVALID_QUALITY: "The selected quality settings are invalid.",
+    INVALID_OPERATION: "One or more edits cannot be applied to this audio.",
+    DUPLICATE_ACTIVE_JOB: "An export is already in progress for this project.",
+    QUEUE_UNAVAILABLE: "Export is temporarily unavailable. Please try again.",
+    SOURCE_INVALID: "The source audio could not be processed.",
+    UNSUPPORTED_CODEC:
+      "This audio cannot be exported with the selected format.",
+    PROCESSING_FAILED: "The audio could not be exported. Please try again.",
+  };
+
 export interface ExportOperationSnapshot {
   readonly id: string;
   readonly type: string;
