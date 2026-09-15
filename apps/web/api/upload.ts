@@ -4,7 +4,7 @@ import {
   getMaxUploadSizeBytes,
   isAllowedAudioContentType,
   isAllowedAudioFilename,
-} from "./upload.validation";
+} from "./upload.validation.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 export default async function handler(
@@ -19,6 +19,7 @@ export default async function handler(
     const body = request.body;
 
     const jsonResponse = await handleUpload({
+      token: process.env.BLOB_READ_WRITE_TOKEN,
       body,
       request,
       onBeforeGenerateToken: async (pathname) => {
