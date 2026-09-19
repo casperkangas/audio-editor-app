@@ -14,6 +14,48 @@ Vercel CLI for local API testing). Never prefix this variable with `VITE_` or
 read it from frontend code. The optional `AUDIO_UPLOAD_MAX_SIZE_BYTES`
 environment variable controls the limit and defaults to 50 MiB.
 
+## Audio export infrastructure variables
+
+The export API and background worker use the following server-only variables. Keep
+all of them out of `apps/web/src/`, browser bundles, and any variable prefixed with
+`VITE_`.
+
+| Variable                         | Used by                      | Purpose                                                               |
+| -------------------------------- | ---------------------------- | --------------------------------------------------------------------- |
+| `BLOB_READ_WRITE_TOKEN`          | Vercel API and export worker | Read/write private source and generated audio objects in Vercel Blob. |
+| `AUDIO_UPLOAD_MAX_SIZE_BYTES`    | Upload API                   | Maximum upload size; defaults to 50 MiB when unset or invalid.        |
+| `JOB_STORE_URL`                  | API and export worker        | Redis connection URL for durable export-job metadata and status.      |
+| `JOB_STORE_TOKEN`                | API and export worker        | Optional Redis provider credential when the URL does not contain it.  |
+| `EXPORT_QUEUE_URL`               | Export API and worker        | Redis connection URL for job-ID queue dispatch and consumption.       |
+| `EXPORT_QUEUE_TOKEN`             | Export API and worker        | Optional Redis provider credential when the URL does not contain it.  |
+| `AUDIO_SOURCE_RETENTION_SECONDS` | Cleanup process              | Retention window for private source objects.                          |
+| `AUDIO_OUTPUT_RETENTION_SECONDS` | Cleanup process              | Retention window for generated output objects and metadata.           |
+
+Redis is the selected Phase 1 provider for both the job store and export queue. The
+provider-neutral adapters in `apps/web/api/_lib/jobs.ts` and
+`apps/web/api/_lib/queue.ts` must use atomic Redis operations for claims and
+compare-and-set updates. `JOB_STORE_URL` and `EXPORT_QUEUE_URL` may point to the
+same Redis instance, but their logical namespaces must remain separate. Do not
+commit their values or add them to client-visible configuration.
+
+### Vercel and Vercel Blob setup required outside the repository
+
+Before testing the API against deployed infrastructure, Casper must complete these
+dashboard or CLI actions:
+
+1. Create or select a Vercel Blob store and copy its read/write token into the
+   server-only `BLOB_READ_WRITE_TOKEN` variable for the required environments.
+2. Provision a Redis instance with persistence enabled and configure its connection
+   URL in both `JOB_STORE_URL` and `EXPORT_QUEUE_URL`; provide any separate provider
+   credential through the matching `*_TOKEN` variables.
+3. Configure the retention variables and upload limit per environment, then redeploy
+   so changed environment variables are available to API functions.
+4. Configure the external audio-export worker with the same Blob token, job-store
+   credentials, queue credentials, and access to FFmpeg/ffprobe.
+
+The repository does not create Blob stores, provision queue/job-store providers, or
+run FFmpeg. Those are deployment and infrastructure operations outside this codebase.
+
 Use `npx vercel dev` when testing the frontend and `/api/upload` together.
 
 # NB: Deployment to Vercel

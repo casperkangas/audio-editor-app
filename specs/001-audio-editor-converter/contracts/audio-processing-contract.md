@@ -2,7 +2,10 @@
 
 ## Purpose
 
-This contract defines the interfaces between the React frontend, the upload orchestration layer, and the audio processing backend for the MVP audio editor.
+This contract covers the infrastructure/API boundary for upload, export dispatch, job
+status, and worker completion. All request examples omit authentication details; the
+implementation must bind each project and job to the current session or authenticated
+user.
 
 ## 1. Client Upload Token Request
 
@@ -41,6 +44,9 @@ Content-Type: application/json
 - The `BLOB_READ_WRITE_TOKEN` is never returned to or imported by frontend code.
 - Rejects invalid or oversized input before upload begins.
 
+Uploaded objects remain private and use a random suffix. The existing implementation
+defaults to a 50 MiB limit through `AUDIO_UPLOAD_MAX_SIZE_BYTES`.
+
 ### Browser usage
 
 ```ts
@@ -51,7 +57,7 @@ await upload("example.wav", file, {
 });
 ```
 
-## 2. Export Job Creation
+## 2. Create Export Job
 
 ### Request
 
@@ -63,12 +69,16 @@ Content-Type: application/json
 ```json
 {
   "projectId": "project_123",
-  "sourceFileId": "blob://uploads/uuid/example.wav",
-  "renderMode": "convert",
-  "targetFormat": "mp3",
-  "quality": {
-    "bitrate": "192k"
-  }
+  "sourceRevision": 4,
+  "sourceBlobKey": "audio/source/uuid/example.wav",
+  "operations": [
+    {
+      "id": "op_1",
+      "type": "trim",
+      "params": { "startTime": 2, "endTime": 18 }
+    }
+  ],
+  "settings": { "format": "mp3", "bitrate": "192k" }
 }
 ```
 
@@ -78,17 +88,22 @@ Content-Type: application/json
 {
   "jobId": "job_456",
   "status": "queued",
+  "stage": "queued",
   "progressPercent": 0,
-  "message": "Preparing export job"
+  "message": "Preparing export"
 }
 ```
 
 ### Behavior
 
-- Creates a job record and triggers the server-side render pipeline.
-- Rejects invalid format or unsupported codec combinations with a clear user message.
+- Authorizes the project and compares the source key with stored project metadata.
+- Validates the immutable operation snapshot and format settings.
+- Rejects a second active job for the same project with `409`.
+- Persists the job and dispatches only the job ID to the worker queue.
+- Returns `400` for invalid input, `401/403` for authorization failures, and `5xx` only
+  for unavailable infrastructure.
 
-## 3. Job Status Polling
+## 3. Read Job Status
 
 ### Request
 
@@ -102,19 +117,59 @@ GET /api/jobs/job_456
 {
   "jobId": "job_456",
   "status": "running",
+  "stage": "rendering",
   "progressPercent": 42,
-  "message": "Encoding audio to MP3",
-  "outputFileId": null,
+  "message": "Rendering audio",
+  "downloadUrl": null,
   "error": null
 }
 ```
 
 ### Behavior
 
-- Provides a lightweight polling endpoint for the frontend to update activity feedback.
-- Exposes progress percent and human-readable status without leaking internal implementation details.
+- Only the owning session/user may read the job.
+- Returns a short-lived signed `downloadUrl` only for an authorized successful job.
+- Does not expose worker logs, Blob credentials, or internal paths.
+- Unknown and unauthorized jobs must not reveal whether another user's job exists.
 
-## 4. Job Completion
+## 4. Worker Dispatch and Completion
+
+Queue message:
+
+```json
+{ "jobId": "job_456" }
+```
+
+The queue payload contains only the opaque job identifier. The worker loads the
+immutable source key, source revision, edit operations, and output settings from
+the authorized job record. Queue implementations may track delivery attempts
+outside this payload.
+
+The worker atomically claims the job, reads the private source Blob, runs `ffprobe`,
+renders the validated operation plan with FFmpeg, writes a private output Blob, verifies
+the output container/codec with `ffprobe`, and updates the job to `succeeded`. Every
+update includes the job revision and is idempotent. Duplicate messages must not create
+multiple successful outputs.
+
+Worker updates use compare-and-set semantics and include the expected current
+job revision. The API job store exposes these operations:
+
+```ts
+claim(jobId, expectedRevision, leaseExpiresAt);
+updateProgress(jobId, expectedRevision, stage, progressPercent);
+completeSuccess(jobId, expectedRevision, outputBlobKey, retentionDeadline);
+completeFailure(jobId, expectedRevision, {
+  errorCode,
+  errorMessage,
+});
+```
+
+`completeSuccess` stores the private output Blob key and moves the job to
+`succeeded` at 100 percent. `completeFailure` stores only a categorized error
+and safe message and moves the job to `failed` at 100 percent. Updates against
+an unknown revision return no job and must be retried from the latest record;
+updates against a terminal job are idempotent no-ops. A successful terminal
+job cannot be overwritten by a later failure or duplicate completion callback.
 
 ### Response on success
 
@@ -124,8 +179,7 @@ GET /api/jobs/job_456
   "status": "succeeded",
   "progressPercent": 100,
   "message": "Export complete",
-  "outputFileId": "blob://exports/job_456/output.mp3",
-  "downloadUrl": "https://blob.example.com/exports/job_456/output.mp3"
+  "downloadUrl": "short-lived-signed-url"
 }
 ```
 
@@ -137,14 +191,23 @@ GET /api/jobs/job_456
   "status": "failed",
   "progressPercent": 100,
   "message": "Audio conversion failed",
-  "error": "Unsupported target codec for current input"
+  "errorCode": "UNSUPPORTED_CODEC",
+  "error": "This audio could not be exported with the selected settings."
 }
 ```
 
-## 5. Processing Constraints
+## 5. Format and Quality Rules
 
-- Jobs are asynchronous and should not be executed in ordinary request handlers for long-running CPU-intensive work.
-- The processing layer should be isolated from the interactive editor experience.
+- `wav` and `flac` accept lossless defaults and reject lossy bitrate parameters.
+- `mp3`, `ogg`, and `aac` accept only allowlisted bitrate or quality presets.
+- The API and worker share the same format policy version.
+- Output extension and content type are derived server-side from the validated format.
+- FFmpeg arguments are constructed from typed values without shell interpolation.
+
+## 6. Processing Constraints
+
+- Jobs MUST be asynchronous and MUST NOT be executed in ordinary request handlers for long-running CPU-intensive work.
+- The processing layer MUST be isolated from the interactive editor experience.
 - Supported formats and optional quality settings must be validated before execution.
 - Failure states must result in human-readable user feedback rather than raw system errors.
 

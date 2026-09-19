@@ -5,8 +5,10 @@ export const ALLOWED_AUDIO_CONTENT_TYPES = [
   "audio/x-wav",
   "audio/mpeg",
   "audio/flac",
+  "audio/x-flac",
   "audio/ogg",
   "audio/aac",
+  "audio/x-aac",
   "audio/mp4",
   "audio/x-m4a",
 ] as const;
@@ -34,11 +36,16 @@ export function getMaxUploadSizeBytes(
 }
 
 export function isAllowedAudioFilename(pathname: string): boolean {
-  const filename = pathname.split("/").pop()?.trim() ?? "";
+  const filename = pathname.trim();
   const extension = filename.split(".").pop()?.toLowerCase();
 
   return Boolean(
-    filename && extension && ALLOWED_AUDIO_EXTENSIONS.has(extension),
+    filename &&
+    !filename.includes("/") &&
+    !filename.includes("\\") &&
+    !filename.includes("..") &&
+    extension &&
+    ALLOWED_AUDIO_EXTENSIONS.has(extension),
   );
 }
 
