@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 import { createClient } from "redis";
 
-=======
->>>>>>> e4f03c3 (Add Redis configuration details and job management interfaces to README and implement job and queue handling)
 export const JOB_STATUSES = [
   "queued",
   "running",
@@ -21,7 +18,6 @@ export type JobStage =
   | "succeeded"
   | "failed";
 
-<<<<<<< HEAD
 export interface ProjectSessionRecord {
   projectId: string;
   sessionId: string;
@@ -31,8 +27,6 @@ export interface ProjectSessionRecord {
   updatedAt: Date;
 }
 
-=======
->>>>>>> e4f03c3 (Add Redis configuration details and job management interfaces to README and implement job and queue handling)
 export interface ExportJobRecord {
   jobId: string;
   projectId: string;
@@ -68,7 +62,6 @@ export type JobUpdate = Partial<
   >
 >;
 
-<<<<<<< HEAD
 export interface WorkerFailure {
   errorCode: string;
   errorMessage: string;
@@ -82,18 +75,12 @@ export interface JobStore {
     projectId: string,
     sessionId: string,
   ): Promise<ProjectSessionRecord | null>;
-=======
-export interface JobStore {
-  create(job: ExportJobRecord): Promise<void>;
-  get(jobId: string): Promise<ExportJobRecord | null>;
->>>>>>> e4f03c3 (Add Redis configuration details and job management interfaces to README and implement job and queue handling)
   findActiveByProject(projectId: string): Promise<ExportJobRecord | null>;
   claim(
     jobId: string,
     expectedRevision: number,
     leaseExpiresAt: Date,
   ): Promise<ExportJobRecord | null>;
-<<<<<<< HEAD
   updateProgress(
     jobId: string,
     expectedRevision: number,
@@ -111,8 +98,6 @@ export interface JobStore {
     expectedRevision: number,
     failure: WorkerFailure,
   ): Promise<ExportJobRecord | null>;
-=======
->>>>>>> e4f03c3 (Add Redis configuration details and job management interfaces to README and implement job and queue handling)
   compareAndSet(
     jobId: string,
     expectedRevision: number,
@@ -120,7 +105,6 @@ export interface JobStore {
   ): Promise<ExportJobRecord | null>;
   expireLeases(now: Date): Promise<number>;
 }
-<<<<<<< HEAD
 
 type RedisClient = ReturnType<typeof createClient>;
 
@@ -411,5 +395,4 @@ export function createRedisJobStore(
   void client.connect();
   return new RedisJobStore(client as RedisClient);
 }
-=======
->>>>>>> e4f03c3 (Add Redis configuration details and job management interfaces to README and implement job and queue handling)
+

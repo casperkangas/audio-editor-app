@@ -1,9 +1,8 @@
+import { createClient } from "redis";
+
 export interface ExportQueue {
   dispatch(jobId: string): Promise<void>;
 }
-<<<<<<< HEAD
-
-import { createClient } from "redis";
 
 const EXPORT_QUEUE_KEY = "audio:export-queue";
 
@@ -26,5 +25,3 @@ export function createRedisExportQueue(
   void client.connect();
   return new RedisExportQueue(client as RedisClient);
 }
-=======
->>>>>>> e4f03c3 (Add Redis configuration details and job management interfaces to README and implement job and queue handling)
