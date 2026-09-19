@@ -1,3 +1,5 @@
+import { createClient } from "redis";
+
 export const JOB_STATUSES = [
   "queued",
   "running",
@@ -15,6 +17,15 @@ export type JobStage =
   | "finalizing"
   | "succeeded"
   | "failed";
+
+export interface ProjectSessionRecord {
+  projectId: string;
+  sessionId: string;
+  sourceBlobKey: string;
+  sourceRevision: number;
+  durationSeconds: number;
+  updatedAt: Date;
+}
 
 export interface ExportJobRecord {
   jobId: string;
@@ -53,7 +64,12 @@ export type JobUpdate = Partial<
 
 export interface JobStore {
   create(job: ExportJobRecord): Promise<void>;
+  createExportJob(job: ExportJobRecord): Promise<void>;
   get(jobId: string): Promise<ExportJobRecord | null>;
+  getProjectSession(
+    projectId: string,
+    sessionId: string,
+  ): Promise<ProjectSessionRecord | null>;
   findActiveByProject(projectId: string): Promise<ExportJobRecord | null>;
   claim(
     jobId: string,
@@ -66,4 +82,248 @@ export interface JobStore {
     update: JobUpdate,
   ): Promise<ExportJobRecord | null>;
   expireLeases(now: Date): Promise<number>;
+}
+
+type RedisClient = ReturnType<typeof createClient>;
+
+const PROJECT_PREFIX = "audio:project:";
+const JOB_PREFIX = "audio:export-job:";
+const ACTIVE_PREFIX = "audio:active-export:";
+
+function projectKey(projectId: string): string {
+  return `${PROJECT_PREFIX}${projectId}`;
+}
+
+function jobKey(jobId: string): string {
+  return `${JOB_PREFIX}${jobId}`;
+}
+
+function activeKey(projectId: string): string {
+  return `${ACTIVE_PREFIX}${projectId}`;
+}
+
+function serializeProject(project: ProjectSessionRecord): string {
+  return JSON.stringify({
+    ...project,
+    updatedAt: project.updatedAt.toISOString(),
+  });
+}
+
+function deserializeProject(value: string): ProjectSessionRecord {
+  const project = JSON.parse(value) as Omit<
+    ProjectSessionRecord,
+    "updatedAt"
+  > & {
+    updatedAt: string;
+  };
+  return { ...project, updatedAt: new Date(project.updatedAt) };
+}
+
+function serializeJob(job: ExportJobRecord): string {
+  return JSON.stringify({
+    ...job,
+    createdAt: job.createdAt.toISOString(),
+    updatedAt: job.updatedAt.toISOString(),
+    leaseExpiresAt: job.leaseExpiresAt?.toISOString() ?? null,
+    retentionDeadline: job.retentionDeadline.toISOString(),
+  });
+}
+
+function deserializeJob(value: string): ExportJobRecord {
+  const job = JSON.parse(value) as Omit<
+    ExportJobRecord,
+    "createdAt" | "updatedAt" | "leaseExpiresAt" | "retentionDeadline"
+  > & {
+    createdAt: string;
+    updatedAt: string;
+    leaseExpiresAt: string | null;
+    retentionDeadline: string;
+  };
+
+  return {
+    ...job,
+    createdAt: new Date(job.createdAt),
+    updatedAt: new Date(job.updatedAt),
+    leaseExpiresAt: job.leaseExpiresAt ? new Date(job.leaseExpiresAt) : null,
+    retentionDeadline: new Date(job.retentionDeadline),
+  };
+}
+
+function isTerminal(status: JobStatus): boolean {
+  return (
+    status === "succeeded" || status === "failed" || status === "cancelled"
+  );
+}
+
+function applyUpdate(job: ExportJobRecord, update: JobUpdate): ExportJobRecord {
+  if (isTerminal(job.status)) return job;
+
+  return {
+    ...job,
+    ...update,
+    progressPercent: Math.max(
+      job.progressPercent,
+      Math.min(100, update.progressPercent ?? job.progressPercent),
+    ),
+    revision: job.revision + 1,
+    updatedAt: new Date(),
+  };
+}
+
+export class RedisJobStore implements JobStore {
+  constructor(private readonly client: RedisClient) {}
+
+  async createProjectSession(project: ProjectSessionRecord): Promise<void> {
+    await this.client.set(
+      projectKey(project.projectId),
+      serializeProject(project),
+    );
+  }
+
+  async getProjectSession(
+    projectId: string,
+    sessionId: string,
+  ): Promise<ProjectSessionRecord | null> {
+    const value = await this.client.get(projectKey(projectId));
+    if (!value) return null;
+
+    const project = deserializeProject(value);
+    return project.sessionId === sessionId ? project : null;
+  }
+
+  async create(job: ExportJobRecord): Promise<void> {
+    const created = await this.client.set(
+      jobKey(job.jobId),
+      serializeJob(job),
+      {
+        NX: true,
+      },
+    );
+    if (created !== "OK") throw new Error("Export job already exists");
+  }
+
+  async createExportJob(job: ExportJobRecord): Promise<void> {
+    const project = await this.getProjectSession(job.projectId, job.sessionId);
+    if (
+      !project ||
+      project.sourceBlobKey !== job.sourceBlobKey ||
+      project.sourceRevision !== job.sourceRevision
+    ) {
+      throw new Error("Project ownership mismatch");
+    }
+
+    const activeJobKey = activeKey(job.projectId);
+    await this.client.watch(activeJobKey);
+    if (await this.client.get(activeJobKey)) {
+      await this.client.unwatch();
+      throw new Error("Active export job already exists");
+    }
+
+    const result = await this.client
+      .multi()
+      .set(jobKey(job.jobId), serializeJob(job), { NX: true })
+      .set(activeJobKey, job.jobId, {
+        EXAT: Math.floor(job.retentionDeadline.getTime() / 1000),
+      })
+      .exec();
+    if (!result) {
+      throw new Error("Active export job already exists");
+    }
+  }
+
+  async get(jobId: string): Promise<ExportJobRecord | null> {
+    const value = await this.client.get(jobKey(jobId));
+    return value ? deserializeJob(value) : null;
+  }
+
+  async findActiveByProject(
+    projectId: string,
+  ): Promise<ExportJobRecord | null> {
+    const jobId = await this.client.get(activeKey(projectId));
+    if (!jobId) return null;
+
+    const job = await this.get(jobId);
+    return job && !isTerminal(job.status) ? job : null;
+  }
+
+  async claim(
+    jobId: string,
+    expectedRevision: number,
+    leaseExpiresAt: Date,
+  ): Promise<ExportJobRecord | null> {
+    return this.compareAndSet(jobId, expectedRevision, {
+      status: "running",
+      stage: "validating",
+      leaseExpiresAt,
+    });
+  }
+
+  async compareAndSet(
+    jobId: string,
+    expectedRevision: number,
+    update: JobUpdate,
+  ): Promise<ExportJobRecord | null> {
+    const key = jobKey(jobId);
+    await this.client.watch(key);
+    const currentValue = await this.client.get(key);
+    if (!currentValue) {
+      await this.client.unwatch();
+      return null;
+    }
+
+    const current = deserializeJob(currentValue);
+    if (current.revision !== expectedRevision) {
+      await this.client.unwatch();
+      return null;
+    }
+
+    const updated = applyUpdate(current, update);
+    const result = await this.client
+      .multi()
+      .set(key, serializeJob(updated))
+      .exec();
+    if (result && isTerminal(updated.status)) {
+      await this.client.del(activeKey(updated.projectId));
+    }
+    return result ? updated : null;
+  }
+
+  async expireLeases(now: Date): Promise<number> {
+    let expired = 0;
+    for await (const rawKey of this.client.scanIterator({
+      MATCH: `${JOB_PREFIX}*`,
+    })) {
+      const key = String(rawKey);
+      const value = await this.client.get(key);
+      if (!value) continue;
+
+      const job = deserializeJob(value);
+      if (
+        job.status === "running" &&
+        job.leaseExpiresAt !== null &&
+        job.leaseExpiresAt <= now
+      ) {
+        const updated = await this.compareAndSet(job.jobId, job.revision, {
+          status: "failed",
+          stage: "failed",
+          progressPercent: 100,
+          errorCode: "PROCESSING_FAILED",
+          errorMessage: "The export worker lease expired.",
+          leaseExpiresAt: null,
+        });
+        if (updated) expired += 1;
+      }
+    }
+    return expired;
+  }
+}
+
+export function createRedisJobStore(
+  url = process.env.REDIS_URL,
+): RedisJobStore {
+  if (!url) throw new Error("REDIS_URL is required");
+
+  const client = createClient({ url });
+  void client.connect();
+  return new RedisJobStore(client as RedisClient);
 }
