@@ -137,14 +137,39 @@ GET /api/jobs/job_456
 Queue message:
 
 ```json
-{ "jobId": "job_456", "attempt": 1 }
+{ "jobId": "job_456" }
 ```
+
+The queue payload contains only the opaque job identifier. The worker loads the
+immutable source key, source revision, edit operations, and output settings from
+the authorized job record. Queue implementations may track delivery attempts
+outside this payload.
 
 The worker atomically claims the job, reads the private source Blob, runs `ffprobe`,
 renders the validated operation plan with FFmpeg, writes a private output Blob, verifies
 the output container/codec with `ffprobe`, and updates the job to `succeeded`. Every
 update includes the job revision and is idempotent. Duplicate messages must not create
 multiple successful outputs.
+
+Worker updates use compare-and-set semantics and include the expected current
+job revision. The API job store exposes these operations:
+
+```ts
+claim(jobId, expectedRevision, leaseExpiresAt);
+updateProgress(jobId, expectedRevision, stage, progressPercent);
+completeSuccess(jobId, expectedRevision, outputBlobKey, retentionDeadline);
+completeFailure(jobId, expectedRevision, {
+  errorCode,
+  errorMessage,
+});
+```
+
+`completeSuccess` stores the private output Blob key and moves the job to
+`succeeded` at 100 percent. `completeFailure` stores only a categorized error
+and safe message and moves the job to `failed` at 100 percent. Updates against
+an unknown revision return no job and must be retried from the latest record;
+updates against a terminal job are idempotent no-ops. A successful terminal
+job cannot be overwritten by a later failure or duplicate completion callback.
 
 ### Response on success
 

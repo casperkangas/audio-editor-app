@@ -55,7 +55,7 @@ The architecture MUST remain testable, maintainable, and deliberately scoped. Un
 
 ### Team Ownership and Scope Boundaries
 
-- Casper owns Vercel deployments, Vercel Blob storage configuration, and the backend API architecture. Deployment configuration, storage buckets, and API routes MUST NOT be modified without Casper’s involvement.
+- Casper owns Vercel deployments, Vercel Blob storage configuration, the backend API architecture, and the FFmpeg background worker processing. Deployment configuration, storage buckets, API routes, and worker queues MUST NOT be modified without Casper’s involvement.
 - Paul-Henrik owns testing infrastructure, validation logic, and CI/CD pipelines. Work with Paul-Henrik MUST focus exclusively on test coverage, validation rules, and deployment pipelines.
 - Tomas owns the frontend visual aesthetic and music player interface. Work with Tomas MUST focus on React UI components, CSS, animations, and visual layouts.
 - Jonas owns application logic, state management, and core functionality supporting the frontend. Work with Jonas MUST focus on audio processing logic, React state management, and functional algorithms.

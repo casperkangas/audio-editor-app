@@ -62,8 +62,8 @@ description: "Actionable tasks for the asynchronous audio export API, Vercel Blo
 - [x] T015 [US2] Implement project/session ownership lookup and export-job creation in `apps/web/api/_lib/jobs.ts`, storing the source Blob key, source revision, immutable edit plan, settings, status, stage, progress, retention deadline, and session binding.
 - [x] T016 [US2] Implement `POST /api/exports` in `apps/web/api/exports.ts` to authorize the project, validate the source object and edit snapshot, reject a second active job, persist the job, dispatch only the job ID, and return queued status.
 - [x] T017 [US2] Implement `GET /api/jobs/[jobId]` in `apps/web/api/jobs/[jobId].ts` to authorize the caller, return a bounded status read model, and sign a short-lived download URL only for a successful terminal job.
-- [ ] T018 [US2] Add idempotent worker callback/update methods to `apps/web/api/_lib/jobs.ts` for claim, progress, success, and failure updates, ensuring stale retries cannot overwrite a successful result.
-- [ ] T019 [US2] Document the worker-facing dispatch and completion payloads in `specs/001-audio-editor-converter/contracts/audio-processing-contract.md`; hand off `workers/audio-export/worker.ts`, `ffmpeg.ts`, `render-plan.ts`, and `cleanup.ts` implementation to the designated worker owner before integration.
+- [x] T018 [US2] Add idempotent worker callback/update methods to `apps/web/api/_lib/jobs.ts` for claim, progress, success, and failure updates, ensuring stale retries cannot overwrite a successful result.
+- [x] T019 [US2] Document the worker-facing dispatch and completion payloads in `specs/001-audio-editor-converter/contracts/audio-processing-contract.md`; hand off `workers/audio-export/worker.ts`, `ffmpeg.ts`, `render-plan.ts`, and `cleanup.ts` implementation to the designated worker owner before integration.
 
 ### Delegated Frontend Handoff for User Story 2
 
@@ -204,11 +204,10 @@ Task T029: Tomas wires conversion progress and retry states
 
 ## Ownership Notes
 
-- **Casper**: Implement T001-T019, T022-T027, T030-T039 where they touch API routes, Blob access/configuration, job metadata/queue adapters, endpoint contracts, or infrastructure documentation.
+- **Casper**: Implement T001-T019, T022-T027, T030-T039 where they touch API routes, Blob access/configuration, job metadata/queue adapters, endpoint contracts, infrastructure documentation, OR the FFmpeg worker implementation (`workers/audio-export/*`).
 - **Tomas**: Implement delegated UI tasks T020, T021, T028, and T029 in the existing export components; these tasks do not authorize API or Blob changes.
 - **Jonas**: Own browser edit-plan serialization and core application state needed to produce the `operations` and `sourceRevision` payload consumed by T016.
 - **Paul-Henrik**: Own CI/test infrastructure changes and test-suite pipeline integration; Casper's API contract tests remain scoped to the route behavior.
-- **Worker owner**: Implement `workers/audio-export/*` against the dispatch and completion contracts documented by T019.
 
 ## Completion Criteria
 

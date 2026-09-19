@@ -62,6 +62,11 @@ export type JobUpdate = Partial<
   >
 >;
 
+export interface WorkerFailure {
+  errorCode: string;
+  errorMessage: string;
+}
+
 export interface JobStore {
   create(job: ExportJobRecord): Promise<void>;
   createExportJob(job: ExportJobRecord): Promise<void>;
@@ -75,6 +80,23 @@ export interface JobStore {
     jobId: string,
     expectedRevision: number,
     leaseExpiresAt: Date,
+  ): Promise<ExportJobRecord | null>;
+  updateProgress(
+    jobId: string,
+    expectedRevision: number,
+    stage: JobStage,
+    progressPercent: number,
+  ): Promise<ExportJobRecord | null>;
+  completeSuccess(
+    jobId: string,
+    expectedRevision: number,
+    outputBlobKey: string,
+    retentionDeadline: Date,
+  ): Promise<ExportJobRecord | null>;
+  completeFailure(
+    jobId: string,
+    expectedRevision: number,
+    failure: WorkerFailure,
   ): Promise<ExportJobRecord | null>;
   compareAndSet(
     jobId: string,
@@ -255,6 +277,52 @@ export class RedisJobStore implements JobStore {
       status: "running",
       stage: "validating",
       leaseExpiresAt,
+    });
+  }
+
+  async updateProgress(
+    jobId: string,
+    expectedRevision: number,
+    stage: JobStage,
+    progressPercent: number,
+  ): Promise<ExportJobRecord | null> {
+    return this.compareAndSet(jobId, expectedRevision, {
+      status: "running",
+      stage,
+      progressPercent,
+    });
+  }
+
+  async completeSuccess(
+    jobId: string,
+    expectedRevision: number,
+    outputBlobKey: string,
+    retentionDeadline: Date,
+  ): Promise<ExportJobRecord | null> {
+    return this.compareAndSet(jobId, expectedRevision, {
+      status: "succeeded",
+      stage: "succeeded",
+      progressPercent: 100,
+      leaseExpiresAt: null,
+      outputBlobKey,
+      retentionDeadline,
+      errorCode: null,
+      errorMessage: null,
+    });
+  }
+
+  async completeFailure(
+    jobId: string,
+    expectedRevision: number,
+    failure: WorkerFailure,
+  ): Promise<ExportJobRecord | null> {
+    return this.compareAndSet(jobId, expectedRevision, {
+      status: "failed",
+      stage: "failed",
+      progressPercent: 100,
+      leaseExpiresAt: null,
+      errorCode: failure.errorCode,
+      errorMessage: failure.errorMessage,
     });
   }
 
