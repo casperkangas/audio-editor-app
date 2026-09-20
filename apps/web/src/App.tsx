@@ -4,7 +4,7 @@ import { useEditor } from "./lib/useEditor";
 import type { SelectionRegion } from "./lib/types";
 import "./App.css";
 
-// ÔöÇÔöÇ Helpers ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── Helpers ───────────────────────────────────────────────────────────────
 
 function peaksToHeights(peaks: Float32Array | null, count: number): number[] {
   if (!peaks || peaks.length === 0) return Array(count).fill(20);
@@ -24,7 +24,7 @@ function formatTime(seconds: number): string {
 
 const BAR_COUNT = 90;
 
-// ÔöÇÔöÇ App ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── App ───────────────────────────────────────────────────────────────────
 
 function App() {
   const editor = useEditor();
@@ -37,7 +37,7 @@ function App() {
     void editor.loadFile(file);
   };
 
-  // ÔöÇÔöÇ Waveform interaction ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Waveform interaction ──────────────────────────────────────────────
 
   const getTimeFromEvent = useCallback(
     (e: React.MouseEvent<HTMLDivElement>): number => {
@@ -82,7 +82,7 @@ function App() {
     dragStart.current = null;
   }, []);
 
-  // ÔöÇÔöÇ Derived values ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Derived values ────────────────────────────────────────────────────
 
   const bars = peaksToHeights(editor.peaks, BAR_COUNT);
   const positionPct =
@@ -103,7 +103,7 @@ function App() {
   const isPlaying = editor.playbackState === "playing";
   const hasFile = editor.fileName !== "";
 
-  // ÔöÇÔöÇ Render ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Render ────────────────────────────────────────────────────────────
 
   return (
     <main className="app-shell">
@@ -190,7 +190,7 @@ function App() {
               hidden
               onChange={(e) => handleFile(e.target.files?.[0])}
             />
-            <div className="upload-glyph">Ôåæ</div>
+            <div className="upload-glyph">↑</div>
             <h2>Drop an audio file here</h2>
             <p>or choose a file from your device</p>
             <button
@@ -201,10 +201,10 @@ function App() {
                 fileInput.current?.click();
               }}
             >
-              Choose audio file <span>ÔåÆ</span>
+              Choose audio file <span>→</span>
             </button>
             <p className="file-hint">
-              MP3, WAV, FLAC, OGG, M4A <span>┬À</span> up to 200 MB
+              MP3, WAV, FLAC, OGG, M4A <span>·</span> up to 200 MB
             </p>
           </div>
         )}
@@ -226,7 +226,7 @@ function App() {
                 <span className="audio-icon">Ôùû</span>
                 <div>
                   <strong>{editor.fileName}</strong>
-                  <span>{formatTime(editor.duration)} ┬À decoded</span>
+                  <span>{formatTime(editor.duration)} · decoded</span>
                 </div>
               </div>
               <button className="text-button" onClick={editor.clearFile}>
@@ -283,7 +283,7 @@ function App() {
                   style={{ left: `${selStartPct}%` }}
                   aria-live="polite"
                 >
-                  Selected ┬À {formatTime(selDuration)}
+                  Selected · {formatTime(selDuration)}
                 </div>
               )}
             </div>
@@ -432,10 +432,10 @@ function App() {
             </label>
             <label>
               Quality
-              <select defaultValue="High ┬À 256 kbps">
-                <option>High ┬À 256 kbps</option>
-                <option>Standard ┬À 192 kbps</option>
-                <option>Compact ┬À 128 kbps</option>
+              <select defaultValue="High · 256 kbps">
+                <option>High · 256 kbps</option>
+                <option>Standard · 192 kbps</option>
+                <option>Compact · 128 kbps</option>
               </select>
             </label>
             <div className="panel-actions">
@@ -453,7 +453,7 @@ function App() {
                   console.info("[export] queued");
                 }}
               >
-                Start export <span>ÔåÆ</span>
+                Start export <span>→</span>
               </button>
             </div>
           </div>
@@ -462,10 +462,10 @@ function App() {
 
       <footer>
         <span>
-          Sonicraft <span className="footer-dot">┬À</span> Browser audio editor
+          Sonicraft <span className="footer-dot">·</span> Browser audio editor
         </span>
         <span>
-          No account required <span className="footer-dot">┬À</span> Your files
+          No account required <span className="footer-dot">·</span> Your files
           stay private
         </span>
       </footer>
