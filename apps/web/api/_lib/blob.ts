@@ -1,4 +1,5 @@
 import {
+  del,
   head,
   issueSignedToken,
   presignUrl,
@@ -154,6 +155,29 @@ export async function uploadPrivateBlob(
       allowOverwrite: false,
     });
     return { pathname: result.pathname };
+  } catch {
+    throw new BlobAccessError();
+  }
+}
+
+export async function deletePrivateBlob(
+  pathname: string,
+  token?: string,
+): Promise<void> {
+  if (
+    !pathname.startsWith(EXPORT_PREFIX) ||
+    pathname.includes("..") ||
+    pathname.includes("\\") ||
+    pathname.includes("?") ||
+    pathname.includes("#") ||
+    pathname.includes("://") ||
+    pathname.length <= EXPORT_PREFIX.length
+  ) {
+    throw new BlobAccessError();
+  }
+
+  try {
+    await del(pathname, { token: getBlobToken(token) });
   } catch {
     throw new BlobAccessError();
   }
