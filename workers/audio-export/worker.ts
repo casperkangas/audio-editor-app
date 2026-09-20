@@ -7,8 +7,25 @@ import type {
 import {
   EXPORT_ERROR_MESSAGES,
   type ExportErrorCode,
+  validateExportSettings,
+  type ExportOperationSnapshot,
 } from "../../apps/web/api/_lib/export.validation.js";
-import { finalizeRenderedOutput, type ProbeCommand } from "./ffmpeg.js";
+import {
+  finalizeRenderedOutput,
+  type ProbeCommand,
+  createSourceWorkspace,
+  probeAudioFile,
+  buildFfmpegArgs,
+  WorkerSourceError,
+  AudioProbeError,
+} from "./ffmpeg.js";
+import { cleanupWorkspace, cleanupFailedOutput } from "./cleanup.js";
+import { createRenderPlan } from "./render-plan.js";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { join } from "node:path";
+
+const execFileAsync = promisify(execFile);
 
 export interface ExportWorkerMessage {
   jobId: string;
@@ -86,9 +103,96 @@ export async function loadExportJob(
   return job;
 }
 
-export function createExportWorker(jobStore: Pick<JobStore, "get">) {
-  return (message: unknown): Promise<ExportJobRecord> =>
-    loadExportJob(message, jobStore);
+export function createExportWorker(
+  jobStore: JobStore,
+  options?: WorkerOrchestratorOptions,
+) {
+  const orchestrator = createWorkerOrchestrator(jobStore, options);
+
+  return async (
+    message: unknown,
+    token?: string,
+  ): Promise<ExportJobRecord | null> => {
+    let job = await orchestrator.claim(message);
+    if (!job) return null;
+
+    let workspace: import("./ffmpeg.js").TemporaryAudioWorkspace | null = null;
+    let leaseInterval: NodeJS.Timeout | null = null;
+
+    try {
+      const leaseDurationMs = options?.leaseDurationMs ?? 5 * 60 * 1000;
+      leaseInterval = setInterval(
+        () => {
+          orchestrator.renewLease(job!).then(
+            (renewed) => {
+              job = renewed;
+            },
+            (err) => {
+              console.error("Worker lease renewal failed:", err);
+            },
+          );
+        },
+        Math.max(1000, leaseDurationMs / 2),
+      );
+
+      job = await orchestrator.progress(job, "validating", 10);
+      workspace = await createSourceWorkspace(job, token);
+      const probe = await probeAudioFile(workspace.sourcePath);
+      const plan = createRenderPlan(
+        job.operations as ExportOperationSnapshot[],
+        probe.durationSeconds,
+      );
+
+      const settingsResult = validateExportSettings(job.settings);
+      if (!settingsResult.valid) {
+        throw new WorkerSourceError(settingsResult.message);
+      }
+
+      const outputPath = join(
+        workspace.directoryPath,
+        `output.${settingsResult.value.extension}`,
+      );
+      const args = buildFfmpegArgs(
+        workspace.sourcePath,
+        outputPath,
+        plan,
+        settingsResult.value,
+      );
+
+      job = await orchestrator.progress(job, "rendering", 50);
+
+      try {
+        await execFileAsync("ffmpeg", args as string[]);
+      } catch (err) {
+        throw new WorkerSourceError("FFmpeg execution failed");
+      }
+
+      job = await orchestrator.progress(job, "finalizing", 90);
+      job = await finalizeWorkerOutput(job, outputPath, orchestrator, token);
+
+      return job;
+    } catch (error) {
+      if (
+        job &&
+        job.status !== "succeeded" &&
+        job.status !== "failed" &&
+        job.status !== "cancelled"
+      ) {
+        try {
+          job = await orchestrator.fail(job, error);
+        } catch (failErr) {
+          console.error(
+            "Worker failed to transition job to terminal state:",
+            failErr,
+          );
+        }
+      }
+      return job;
+    } finally {
+      if (leaseInterval) clearInterval(leaseInterval);
+      await cleanupWorkspace(workspace);
+    }
+  };
 }
 
 function assertPositiveDuration(value: number, name: string): void {
@@ -294,11 +398,17 @@ export function finalizeWorkerOutput(
   token?: string,
   runProbe?: ProbeCommand,
 ): Promise<ExportJobRecord> {
-  return finalizeRenderedOutput(
-    job,
-    outputPath,
-    orchestrator.succeed,
-    token,
-    runProbe,
-  );
+  const safeSucceed = async (
+    j: ExportJobRecord,
+    outputBlobKey: string,
+  ): Promise<ExportJobRecord> => {
+    try {
+      return await orchestrator.succeed(j, outputBlobKey);
+    } catch (error) {
+      await cleanupFailedOutput(outputBlobKey, token);
+      throw error;
+    }
+  };
+
+  return finalizeRenderedOutput(job, outputPath, safeSucceed, token, runProbe);
 }
