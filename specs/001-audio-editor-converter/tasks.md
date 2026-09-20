@@ -84,7 +84,7 @@ description: "Actionable tasks for the asynchronous audio export API, Vercel Blo
 
 - [x] T040 [US2] Create the worker entrypoint and queue-message parser in `workers/audio-export/worker.ts`, accepting only `{ jobId: string }` and loading the immutable job record through the existing `JobStore` contract.
 - [x] T041 [P] [US2] Implement private source-object download and isolated temporary-file lifecycle in `workers/audio-export/ffmpeg.ts`, using the Blob access boundary and rejecting missing or unauthorized source objects.
-- [ ] T042 [P] [US2] Implement bounded `ffprobe` input inspection in `workers/audio-export/ffmpeg.ts`, mapping missing streams, malformed containers, unsupported codecs, duration limits, and probe failures to safe worker error codes.
+- [x] T042 [P] [US2] Implement bounded `ffprobe` input inspection in `workers/audio-export/ffmpeg.ts`, mapping missing streams, malformed containers, unsupported codecs, duration limits, and probe failures to safe worker error codes.
 - [ ] T043 [US2] Implement typed edit-operation translation in `workers/audio-export/render-plan.ts` for trim, delete, split, volume, fade-in, and fade-out without accepting client-provided shell arguments or filtergraph text.
 - [ ] T044 [US2] Implement the FFmpeg argument builder in `workers/audio-export/ffmpeg.ts`, deriving all flags from validated operation and format policy values and invoking the process without shell interpolation.
 - [ ] T045 [US2] Implement claim, progress, lease, success, and categorized failure orchestration in `workers/audio-export/worker.ts` using Redis compare-and-set revisions and terminal-state protection.
