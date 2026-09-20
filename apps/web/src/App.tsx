@@ -110,7 +110,7 @@ function App() {
       {/* Top bar */}
       <header className="topbar">
         <a className="brand" href="/" aria-label="Sonicraft home">
-          <span className="brand-mark">Ôîü</span>
+          <span className="brand-mark">∿</span>
           <span>Sonicraft</span>
         </a>
         <div className="topbar-actions">
@@ -138,7 +138,7 @@ function App() {
             </p>
           </div>
           <div className="privacy-note">
-            <span className="lock">Ôîæ</span>
+            <span className="lock">🔒</span>
             <span>
               <strong>Private by default</strong>
               <br />
@@ -154,7 +154,7 @@ function App() {
             role="alert"
             style={{ marginBottom: "16px", color: "#c0392b" }}
           >
-            <span>ÔÜá</span>
+            <span>⚠️</span>
             {editor.error}
             <button
               className="text-button"
@@ -212,8 +212,8 @@ function App() {
         {/* Loading */}
         {editor.loading && (
           <div className="upload-card" style={{ minHeight: 180, gap: "14px" }}>
-            <div className="upload-glyph">Ôå╗</div>
-            <p>Decoding audioÔÇª</p>
+            <div className="upload-glyph">↻</div>
+            <p>Decoding audio...</p>
           </div>
         )}
 
@@ -223,7 +223,7 @@ function App() {
             {/* File bar */}
             <div className="file-bar">
               <div className="file-title">
-                <span className="audio-icon">Ôùû</span>
+                <span className="audio-icon">🎵</span>
                 <div>
                   <strong>{editor.fileName}</strong>
                   <span>{formatTime(editor.duration)} · decoded</span>
@@ -244,7 +244,7 @@ function App() {
               </div>
               <div
                 className="waveform"
-                aria-label="Audio waveform ÔÇô drag to select a region, click to seek"
+                aria-label="Audio waveform - drag to select a region, click to seek"
                 role="img"
                 onMouseDown={handleWaveformMouseDown}
                 onMouseMove={handleWaveformMouseMove}
@@ -295,7 +295,7 @@ function App() {
                 onClick={isPlaying ? editor.pause : editor.play}
                 aria-label={isPlaying ? "Pause" : "Play"}
               >
-                {isPlaying ? "Ôàí" : "ÔûÂ"}
+                {isPlaying ? "⏸" : "▶"}
               </button>
               <span className="timecode">
                 {formatTime(editor.currentTime)}{" "}
@@ -308,7 +308,7 @@ function App() {
                   disabled={!editor.canUndo}
                   aria-label="Undo"
                 >
-                  <span>ÔåÂ</span> Undo
+                  <span>↶</span> Undo
                 </button>
                 <button
                   className="tool-button"
@@ -316,7 +316,7 @@ function App() {
                   disabled={!editor.canRedo}
                   aria-label="Redo"
                 >
-                  <span>ÔåÀ</span> Redo
+                  <span>↷</span> Redo
                 </button>
                 <span className="divider" />
                 <span className="volume-control">
@@ -327,15 +327,15 @@ function App() {
                     disabled={!editor.selection}
                     title="Increase volume of selection (+20%)"
                   >
-                    Ôû▓
+                    ▲
                   </button>
                   <button
                     className="tool-button"
                     onClick={editor.applyVolumeDown}
                     disabled={!editor.selection}
-                    title="Decrease volume of selection (ÔêÆ20%)"
+                    title="Decrease volume of selection (-20%)"
                   >
-                    Ôû╝
+                    ▼
                   </button>
                 </span>
               </div>
@@ -397,7 +397,7 @@ function App() {
             className={`notice ${editor.notice ? "visible" : ""}`}
             aria-live="polite"
           >
-            <span>Ô£ª</span>
+            <span>✨</span>
             {editor.notice ?? " "}
           </div>
           <button
@@ -406,7 +406,7 @@ function App() {
             disabled={!hasFile}
             aria-label="Export audio"
           >
-            Export audio <span>Ôåù</span>
+            Export audio <span>↓</span>
           </button>
         </div>
 
