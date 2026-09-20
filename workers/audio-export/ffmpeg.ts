@@ -4,12 +4,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import type { ExportJobRecord } from "../../apps/web/api/_lib/jobs.js";
-import { MAX_AUDIO_DURATION_SECONDS } from "../../apps/web/api/_lib/export.validation.js";
+import {
+  MAX_AUDIO_DURATION_SECONDS,
+  type ValidatedExportSettings,
+} from "../../apps/web/api/_lib/export.validation.js";
 import {
   createPrivateDownloadUrl,
   lookupPrivateBlob,
   type BlobAccessContext,
 } from "../../apps/web/api/_lib/blob.js";
+import type { RenderEffect, RenderPlan } from "./render-plan.js";
 
 const TEMP_DIRECTORY_PREFIX = "audio-export-";
 const SOURCE_FILE_NAME = "source.audio";
@@ -199,6 +203,121 @@ export async function probeAudioFile(
       "The source audio could not be inspected.",
     );
   }
+}
+
+function assertFiniteFilterValue(value: number, name: string): void {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new WorkerSourceError(`The render plan contains an invalid ${name}.`);
+  }
+}
+
+function formatFilterValue(value: number, name: string): string {
+  assertFiniteFilterValue(value, name);
+  return String(value);
+}
+
+function renderEffect(effect: RenderEffect, segmentStartTime: number): string {
+  if (effect.type === "volume") {
+    const startTime = effect.startTime - segmentStartTime;
+    const endTime = effect.endTime - segmentStartTime;
+    assertFiniteFilterValue(effect.gain, "gain");
+    return `volume=volume=${formatFilterValue(effect.gain, "gain")}:enable='between(t,${formatFilterValue(startTime, "effect start")},${formatFilterValue(endTime, "effect end")})'`;
+  }
+
+  const startTime = effect.startTime - segmentStartTime;
+  assertFiniteFilterValue(startTime, "fade start");
+  assertFiniteFilterValue(effect.duration, "fade duration");
+  return `afade=t=${effect.type === "fade-in" ? "in" : "out"}:st=${formatFilterValue(startTime, "fade start")}:d=${formatFilterValue(effect.duration, "fade duration")}`;
+}
+
+function renderSegmentFilter(
+  segment: RenderPlan["segments"][number],
+  index: number,
+): string {
+  const startTime = formatFilterValue(segment.startTime, "segment start");
+  const endTime = formatFilterValue(segment.endTime, "segment end");
+  const filters = [
+    `atrim=start=${startTime}:end=${endTime}`,
+    "asetpts=PTS-STARTPTS",
+    ...segment.effects.map((effect) => renderEffect(effect, segment.startTime)),
+  ];
+  return `[0:a]${filters.join(",")}[segment${index}]`;
+}
+
+function buildFilterComplex(plan: RenderPlan): string {
+  if (plan.segments.length === 0) {
+    throw new WorkerSourceError("The render plan contains no audio segments.");
+  }
+
+  const segmentFilters = plan.segments.map((segment, index) =>
+    renderSegmentFilter(segment, index),
+  );
+  const labels = plan.segments.map((_, index) => `[segment${index}]`).join("");
+  return `${segmentFilters.join(";")};${labels}concat=n=${plan.segments.length}:v=0:a=1[outa]`;
+}
+
+function buildEncoderArgs(settings: ValidatedExportSettings): string[] {
+  switch (settings.format) {
+    case "wav":
+      return ["-c:a", "pcm_s16le", "-f", "wav"];
+    case "mp3":
+      return [
+        "-c:a",
+        "libmp3lame",
+        ...(settings.bitrate ? ["-b:a", settings.bitrate] : []),
+        "-f",
+        "mp3",
+      ];
+    case "flac":
+      return ["-c:a", "flac", "-f", "flac"];
+    case "ogg":
+      return [
+        "-c:a",
+        "libvorbis",
+        ...(settings.bitrate ? ["-b:a", settings.bitrate] : []),
+        "-f",
+        "ogg",
+      ];
+    case "aac":
+      return [
+        "-c:a",
+        "aac",
+        ...(settings.bitrate ? ["-b:a", settings.bitrate] : []),
+        "-f",
+        "adts",
+      ];
+  }
+}
+
+export function buildFfmpegArgs(
+  sourcePath: string,
+  outputPath: string,
+  plan: RenderPlan,
+  settings: ValidatedExportSettings,
+): readonly string[] {
+  if (
+    sourcePath.length === 0 ||
+    outputPath.length === 0 ||
+    sourcePath.includes("\0") ||
+    outputPath.includes("\0")
+  ) {
+    throw new WorkerSourceError("The FFmpeg input or output path is invalid.");
+  }
+
+  const filterComplex = buildFilterComplex(plan);
+  return [
+    "-hide_banner",
+    "-nostdin",
+    "-y",
+    "-i",
+    sourcePath,
+    "-filter_complex",
+    filterComplex,
+    "-map",
+    "[outa]",
+    ...buildEncoderArgs(settings),
+    outputPath,
+  ];
 }
 
 function sourceBlobContext(job: ExportJobRecord): BlobAccessContext {
