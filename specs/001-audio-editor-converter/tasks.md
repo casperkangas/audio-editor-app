@@ -88,8 +88,8 @@ description: "Actionable tasks for the asynchronous audio export API, Vercel Blo
 - [x] T043 [US2] Implement typed edit-operation translation in `workers/audio-export/render-plan.ts` for trim, delete, split, volume, fade-in, and fade-out without accepting client-provided shell arguments or filtergraph text.
 - [x] T044 [US2] Implement the FFmpeg argument builder in `workers/audio-export/ffmpeg.ts`, deriving all flags from validated operation and format policy values and invoking the process without shell interpolation.
 - [x] T045 [US2] Implement claim, progress, lease, success, and categorized failure orchestration in `workers/audio-export/worker.ts` using Redis compare-and-set revisions and terminal-state protection.
-- [ ] T046 [US3] Implement format and quality encoder mappings in `workers/audio-export/ffmpeg.ts` for WAV, MP3, FLAC, OGG, and AAC, matching the API format-policy version and rejecting unsupported combinations before execution.
-- [ ] T047 [US3] Upload completed output privately through `workers/audio-export/worker.ts`, verify container, codec, duration, and extension with `ffprobe`, and call `completeSuccess` only after verification.
+- [x] T046 [US3] Implement format and quality encoder mappings in `workers/audio-export/ffmpeg.ts` for WAV, MP3, FLAC, OGG, and AAC, matching the API format-policy version and rejecting unsupported combinations before execution.
+- [x] T047 [US3] Upload completed output privately through `workers/audio-export/worker.ts`, verify container, codec, duration, and extension with `ffprobe`, and call `completeSuccess` only after verification.
 - [ ] T048 [US4] Implement idempotent temporary-file and failed-output cleanup in `workers/audio-export/cleanup.ts`, preserving successful job state when cleanup itself fails.
 - [ ] T049 [US4] Add lease-expiry, duplicate-delivery, retry, and partial-output recovery handling across `workers/audio-export/worker.ts` and `workers/audio-export/cleanup.ts` without creating duplicate successful outputs.
 

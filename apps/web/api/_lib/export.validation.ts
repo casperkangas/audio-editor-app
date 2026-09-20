@@ -1,5 +1,7 @@
 export const EXPORT_FORMATS = ["wav", "mp3", "flac", "ogg", "aac"] as const;
 
+export const EXPORT_FORMAT_POLICY_VERSION = "1" as const;
+
 export const MAX_EXPORT_OPERATIONS = 100;
 export const MAX_AUDIO_DURATION_SECONDS = 2 * 60 * 60;
 
@@ -12,7 +14,7 @@ const ALLOWED_OPERATION_TYPES = [
   "fade-out",
 ] as const;
 
-const LOSSY_BITRATES = [
+export const LOSSY_BITRATES = [
   "64k",
   "96k",
   "128k",
@@ -21,14 +23,44 @@ const LOSSY_BITRATES = [
   "256k",
   "320k",
 ] as const;
-const LOSSY_QUALITY_PRESETS = ["low", "medium", "high"] as const;
+export const LOSSY_QUALITY_PRESETS = ["low", "medium", "high"] as const;
 
-const FORMAT_POLICIES = {
-  wav: { extension: "wav", contentType: "audio/wav", lossless: true },
-  mp3: { extension: "mp3", contentType: "audio/mpeg", lossless: false },
-  flac: { extension: "flac", contentType: "audio/flac", lossless: true },
-  ogg: { extension: "ogg", contentType: "audio/ogg", lossless: false },
-  aac: { extension: "aac", contentType: "audio/aac", lossless: false },
+export const EXPORT_FORMAT_POLICIES = {
+  wav: {
+    extension: "wav",
+    contentType: "audio/wav",
+    lossless: true,
+    codec: "pcm_s16le",
+    muxer: "wav",
+  },
+  mp3: {
+    extension: "mp3",
+    contentType: "audio/mpeg",
+    lossless: false,
+    codec: "libmp3lame",
+    muxer: "mp3",
+  },
+  flac: {
+    extension: "flac",
+    contentType: "audio/flac",
+    lossless: true,
+    codec: "flac",
+    muxer: "flac",
+  },
+  ogg: {
+    extension: "ogg",
+    contentType: "audio/ogg",
+    lossless: false,
+    codec: "libvorbis",
+    muxer: "ogg",
+  },
+  aac: {
+    extension: "aac",
+    contentType: "audio/aac",
+    lossless: false,
+    codec: "aac",
+    muxer: "adts",
+  },
 } as const;
 
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
@@ -319,7 +351,15 @@ export function validateExportSettings(
     };
   }
 
-  const policy = FORMAT_POLICIES[settings.format];
+  if (settings.bitrate !== undefined && settings.qualityPreset !== undefined) {
+    return {
+      valid: false,
+      errorCode: "INVALID_QUALITY",
+      message: "Choose either a bitrate or a quality preset.",
+    };
+  }
+
+  const policy = EXPORT_FORMAT_POLICIES[settings.format];
   if (policy.lossless) {
     if (
       settings.bitrate !== undefined ||

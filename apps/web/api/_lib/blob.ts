@@ -2,6 +2,7 @@ import {
   head,
   issueSignedToken,
   presignUrl,
+  put,
   type HeadBlobResult,
 } from "@vercel/blob";
 
@@ -119,6 +120,40 @@ export async function createPrivateDownloadUrl(
     });
 
     return result.presignedUrl;
+  } catch {
+    throw new BlobAccessError();
+  }
+}
+
+export async function uploadPrivateBlob(
+  pathname: string,
+  body: Buffer,
+  contentType: string,
+  token?: string,
+): Promise<{ readonly pathname: string }> {
+  if (
+    !pathname.startsWith(EXPORT_PREFIX) ||
+    pathname.includes("..") ||
+    pathname.includes("\\") ||
+    pathname.includes("?") ||
+    pathname.includes("#") ||
+    pathname.includes("://") ||
+    pathname.length <= EXPORT_PREFIX.length ||
+    body.length === 0 ||
+    contentType.trim().length === 0
+  ) {
+    throw new BlobAccessError();
+  }
+
+  try {
+    const result = await put(pathname, body, {
+      access: "private",
+      token: getBlobToken(token),
+      contentType,
+      addRandomSuffix: false,
+      allowOverwrite: false,
+    });
+    return { pathname: result.pathname };
   } catch {
     throw new BlobAccessError();
   }

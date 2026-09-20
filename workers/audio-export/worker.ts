@@ -8,6 +8,7 @@ import {
   EXPORT_ERROR_MESSAGES,
   type ExportErrorCode,
 } from "../../apps/web/api/_lib/export.validation.js";
+import { finalizeRenderedOutput, type ProbeCommand } from "./ffmpeg.js";
 
 export interface ExportWorkerMessage {
   jobId: string;
@@ -282,4 +283,22 @@ export function createWorkerOrchestrator(
   }
 
   return { claim, renewLease, progress, succeed, fail };
+}
+
+export type WorkerOrchestrator = ReturnType<typeof createWorkerOrchestrator>;
+
+export function finalizeWorkerOutput(
+  job: ExportJobRecord,
+  outputPath: string,
+  orchestrator: Pick<WorkerOrchestrator, "succeed">,
+  token?: string,
+  runProbe?: ProbeCommand,
+): Promise<ExportJobRecord> {
+  return finalizeRenderedOutput(
+    job,
+    outputPath,
+    orchestrator.succeed,
+    token,
+    runProbe,
+  );
 }

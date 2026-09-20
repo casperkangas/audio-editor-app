@@ -5,12 +5,17 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import type { ExportJobRecord } from "../../apps/web/api/_lib/jobs.js";
 import {
+  EXPORT_FORMAT_POLICIES,
+  LOSSY_BITRATES,
+  LOSSY_QUALITY_PRESETS,
   MAX_AUDIO_DURATION_SECONDS,
+  validateExportSettings,
   type ValidatedExportSettings,
 } from "../../apps/web/api/_lib/export.validation.js";
 import {
   createPrivateDownloadUrl,
   lookupPrivateBlob,
+  uploadPrivateBlob,
   type BlobAccessContext,
 } from "../../apps/web/api/_lib/blob.js";
 import type { RenderEffect, RenderPlan } from "./render-plan.js";
@@ -256,35 +261,88 @@ function buildFilterComplex(plan: RenderPlan): string {
   return `${segmentFilters.join(";")};${labels}concat=n=${plan.segments.length}:v=0:a=1[outa]`;
 }
 
+class EncoderPolicyError extends WorkerSourceError {
+  constructor(message: string) {
+    super(message);
+    this.name = "EncoderPolicyError";
+  }
+}
+
+function buildQualityArgs(settings: ValidatedExportSettings): string[] {
+  if (settings.bitrate !== undefined && settings.qualityPreset !== undefined) {
+    throw new EncoderPolicyError(
+      "Bitrate and quality preset cannot be selected together.",
+    );
+  }
+
+  if (settings.bitrate !== undefined) {
+    if (!(LOSSY_BITRATES as readonly string[]).includes(settings.bitrate)) {
+      throw new EncoderPolicyError("The selected bitrate is not supported.");
+    }
+    return ["-b:a", settings.bitrate];
+  }
+
+  if (settings.qualityPreset === undefined) return [];
+
+  if (settings.format === "wav" || settings.format === "flac") {
+    if (settings.qualityPreset !== "lossless") {
+      throw new EncoderPolicyError(
+        "This format only supports lossless quality.",
+      );
+    }
+    return [];
+  }
+
+  if (
+    !(LOSSY_QUALITY_PRESETS as readonly string[]).includes(
+      settings.qualityPreset,
+    )
+  ) {
+    throw new EncoderPolicyError(
+      "The selected quality preset is not supported.",
+    );
+  }
+
+  const qualityValue =
+    settings.format === "mp3"
+      ? { low: "7", medium: "4", high: "2" }
+      : settings.format === "ogg"
+        ? { low: "3", medium: "5", high: "8" }
+        : { low: "4", medium: "2", high: "1" };
+  const qualityPreset = settings.qualityPreset as "low" | "medium" | "high";
+  return ["-q:a", qualityValue[qualityPreset]];
+}
+
 function buildEncoderArgs(settings: ValidatedExportSettings): string[] {
+  const policy = EXPORT_FORMAT_POLICIES[settings.format];
   switch (settings.format) {
     case "wav":
-      return ["-c:a", "pcm_s16le", "-f", "wav"];
+      return ["-c:a", policy.codec, "-f", policy.muxer];
     case "mp3":
       return [
         "-c:a",
-        "libmp3lame",
-        ...(settings.bitrate ? ["-b:a", settings.bitrate] : []),
+        policy.codec,
+        ...buildQualityArgs(settings),
         "-f",
-        "mp3",
+        policy.muxer,
       ];
     case "flac":
-      return ["-c:a", "flac", "-f", "flac"];
+      return ["-c:a", policy.codec, "-f", policy.muxer];
     case "ogg":
       return [
         "-c:a",
-        "libvorbis",
-        ...(settings.bitrate ? ["-b:a", settings.bitrate] : []),
+        policy.codec,
+        ...buildQualityArgs(settings),
         "-f",
-        "ogg",
+        policy.muxer,
       ];
     case "aac":
       return [
         "-c:a",
-        "aac",
-        ...(settings.bitrate ? ["-b:a", settings.bitrate] : []),
+        policy.codec,
+        ...buildQualityArgs(settings),
         "-f",
-        "adts",
+        policy.muxer,
       ];
   }
 }
@@ -318,6 +376,80 @@ export function buildFfmpegArgs(
     ...buildEncoderArgs(settings),
     outputPath,
   ];
+}
+
+function outputPathForJob(job: ExportJobRecord, extension: string): string {
+  if (
+    !/^[A-Za-z0-9_-]+$/.test(job.jobId) ||
+    !/^[A-Za-z0-9_-]+$/.test(job.projectId)
+  ) {
+    throw new WorkerSourceError("The export identity is invalid.");
+  }
+  return `audio/export/${job.projectId}/${job.jobId}.${extension}`;
+}
+
+export async function verifyOutputFile(
+  outputPath: string,
+  settings: ValidatedExportSettings,
+  runProbe: ProbeCommand = runFfprobe,
+): Promise<AudioProbeResult> {
+  const probe = await probeAudioFile(outputPath, runProbe);
+  const policy = EXPORT_FORMAT_POLICIES[settings.format];
+  const expectedOutputCodec = {
+    wav: "pcm_s16le",
+    mp3: "mp3",
+    flac: "flac",
+    ogg: "vorbis",
+    aac: "aac",
+  }[settings.format];
+  if (probe.codec !== expectedOutputCodec) {
+    throw new AudioProbeError(
+      "UNSUPPORTED_CODEC",
+      "The generated output codec does not match the requested format.",
+    );
+  }
+  if (
+    probe.formatName === null ||
+    !probe.formatName.split(",").includes(policy.muxer)
+  ) {
+    throw new AudioProbeError(
+      "SOURCE_INVALID",
+      "The generated output container does not match the requested format.",
+    );
+  }
+  return probe;
+}
+
+export type CompleteOutput = (
+  job: ExportJobRecord,
+  outputBlobKey: string,
+) => Promise<ExportJobRecord>;
+
+export async function finalizeRenderedOutput(
+  job: ExportJobRecord,
+  outputPath: string,
+  completeOutput: CompleteOutput,
+  token?: string,
+  runProbe: ProbeCommand = runFfprobe,
+): Promise<ExportJobRecord> {
+  const settingsResult = validateExportSettings(job.settings);
+  if (!settingsResult.valid) {
+    throw new WorkerSourceError(settingsResult.message);
+  }
+
+  const settings = settingsResult.value;
+  const outputProbe = await verifyOutputFile(outputPath, settings, runProbe);
+  if (outputProbe.durationSeconds > MAX_AUDIO_DURATION_SECONDS) {
+    throw new AudioProbeError(
+      "SOURCE_INVALID",
+      "The generated output duration is unsupported.",
+    );
+  }
+
+  const outputKey = outputPathForJob(job, settings.extension);
+  const outputBytes = await readFile(outputPath);
+  await uploadPrivateBlob(outputKey, outputBytes, settings.contentType, token);
+  return completeOutput(job, outputKey);
 }
 
 function sourceBlobContext(job: ExportJobRecord): BlobAccessContext {
