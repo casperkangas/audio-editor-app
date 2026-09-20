@@ -17,9 +17,9 @@ export class RedisExportQueue implements ExportQueue {
 }
 
 export function createRedisExportQueue(
-  url = process.env.REDIS_URL,
+  url = process.env.EXPORT_QUEUE_URL,
 ): RedisExportQueue {
-  if (!url) throw new Error("REDIS_URL is required");
+  if (!url) throw new Error("EXPORT_QUEUE_URL is required");
 
   const client = createClient({ url });
   void client.connect();

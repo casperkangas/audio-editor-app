@@ -25,8 +25,9 @@ profiles, and account persistence are explicitly out of scope.
 **Language/Version**: TypeScript 6 / React 19 in Vite; Node.js-compatible Vercel API handlers; FFmpeg worker runtime.
 
 **Primary Dependencies**: React, Vite, TypeScript, `@vercel/blob` client/server APIs, `@vercel/node`,
-Web Audio API, FFmpeg/ffprobe in the worker, and a durable job store plus queue dispatch
-adapter. The existing `apps/web/api/upload.ts` remains the Blob upload-token boundary.
+Web Audio API, FFmpeg/ffprobe in the worker, and the Redis client already declared in
+`apps/web/package.json`. Redis provides the durable job store and queue-dispatch adapter
+for the MVP. The existing `apps/web/api/upload.ts` remains the Blob upload-token boundary.
 
 **Storage**: Private Vercel Blob for source and generated audio objects. Redis is the
 current durable job/session store and owns atomic job revisions, leases, and active-job
@@ -34,11 +35,10 @@ guards; the queue transports job identifiers to the worker. Browser memory remai
 authoritative for the active edit history and sends a serializable operation list and
 source revision at export time.
 
-download flow, and ffprobe/audio fixture smoke tests in the worker environment.
-**Testing**: Vitest for edit operations, history, serialization, request validation, and
-job state transitions; integration tests for Blob token and route contracts with mocked
-adapters; Playwright for upload-to-download and responsive interaction flows; and
-ffprobe/audio fixture smoke tests in the worker environment.
+**Testing**: Paul-Henrik owns validation logic, Vitest request/state tests, integration tests
+for Blob token and route contracts, Playwright upload-to-download coverage, ffprobe/audio
+fixture smoke tests, and CI gates. Casper owns API behavior needed to make those tests pass;
+Tomas and Jonas own the frontend and browser-editing behavior exercised by the tests.
 
 **Target Platform**: Browser app and short-lived API handlers hosted on Vercel; FFmpeg runs
 outside ordinary Vercel request handlers in a queue-triggered worker with access to the

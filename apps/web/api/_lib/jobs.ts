@@ -69,7 +69,9 @@ export interface WorkerFailure {
 
 export interface JobStore {
   create(job: ExportJobRecord): Promise<void>;
+  createProjectSession(project: ProjectSessionRecord): Promise<void>;
   createExportJob(job: ExportJobRecord): Promise<void>;
+  removeQueued?(jobId: string, projectId: string): Promise<void>;
   get(jobId: string): Promise<ExportJobRecord | null>;
   getProjectSession(
     projectId: string,
@@ -238,7 +240,7 @@ export class RedisJobStore implements JobStore {
     await this.client.watch(activeJobKey);
     if (await this.client.get(activeJobKey)) {
       await this.client.unwatch();
-      throw new Error("Active export job already exists");
+      throw new DuplicateActiveJobError();
     }
 
     const result = await this.client
@@ -249,8 +251,26 @@ export class RedisJobStore implements JobStore {
       })
       .exec();
     if (!result) {
-      throw new Error("Active export job already exists");
+      throw new DuplicateActiveJobError();
     }
+  }
+
+  async removeQueued(jobId: string, projectId: string): Promise<void> {
+    const key = jobKey(jobId);
+    await this.client.watch(key);
+    const value = await this.client.get(key);
+    if (!value) {
+      await this.client.unwatch();
+      return;
+    }
+
+    const job = deserializeJob(value);
+    if (job.projectId !== projectId || job.status !== "queued") {
+      await this.client.unwatch();
+      return;
+    }
+
+    await this.client.multi().del(key).del(activeKey(projectId)).exec();
   }
 
   async get(jobId: string): Promise<ExportJobRecord | null> {
@@ -386,10 +406,17 @@ export class RedisJobStore implements JobStore {
   }
 }
 
+export class DuplicateActiveJobError extends Error {
+  constructor() {
+    super("An export is already in progress for this project.");
+    this.name = "DuplicateActiveJobError";
+  }
+}
+
 export function createRedisJobStore(
-  url = process.env.REDIS_URL,
+  url = process.env.JOB_STORE_URL,
 ): RedisJobStore {
-  if (!url) throw new Error("REDIS_URL is required");
+  if (!url) throw new Error("JOB_STORE_URL is required");
 
   const client = createClient({ url });
   void client.connect();

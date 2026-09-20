@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   createRedisJobStore,
+  DuplicateActiveJobError,
   type ExportJobRecord,
   type JobStore,
 } from "./_lib/jobs.js";
@@ -165,7 +166,19 @@ export function createExportHandler(dependencies: ExportRouteDependencies) {
         dependencies.createJobId ?? randomUUID,
       );
       await dependencies.jobStore.createExportJob(job);
-      await dependencies.queue.dispatch(job.jobId);
+      try {
+        await dependencies.queue.dispatch(job.jobId);
+      } catch {
+        await dependencies.jobStore.removeQueued?.(
+          job.jobId,
+          job.projectId,
+        );
+        const error = toExportApiError("QUEUE_UNAVAILABLE");
+        return response.status(error.status).json({
+          errorCode: error.errorCode,
+          error: error.message,
+        });
+      }
 
       return response.status(200).json({
         jobId: job.jobId,
@@ -174,7 +187,15 @@ export function createExportHandler(dependencies: ExportRouteDependencies) {
         progressPercent: job.progressPercent,
         message: "Preparing export",
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof DuplicateActiveJobError) {
+        const duplicate = toExportApiError("DUPLICATE_ACTIVE_JOB");
+        return response.status(duplicate.status).json({
+          errorCode: duplicate.errorCode,
+          error: duplicate.message,
+        });
+      }
+
       const error = toUnexpectedExportError();
       return response.status(error.status).json({
         errorCode: error.errorCode,
