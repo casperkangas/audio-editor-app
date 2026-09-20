@@ -32,10 +32,7 @@ export interface WorkerOrchestratorOptions {
 export class WorkerLifecycleError extends Error {
   readonly errorCode: ExportErrorCode | "STALE_JOB";
 
-  constructor(
-    errorCode: ExportErrorCode | "STALE_JOB",
-    message: string,
-  ) {
+  constructor(errorCode: ExportErrorCode | "STALE_JOB", message: string) {
     super(message);
     this.name = "WorkerLifecycleError";
     this.errorCode = errorCode;
@@ -122,13 +119,19 @@ function assertLeaseDuration(leaseDurationMs: number): void {
 function getNow(now: () => Date): Date {
   const value = now();
   if (Number.isNaN(value.getTime())) {
-    throw new WorkerLifecycleError("INVALID_REQUEST", "Worker time is invalid.");
+    throw new WorkerLifecycleError(
+      "INVALID_REQUEST",
+      "Worker time is invalid.",
+    );
   }
   return value;
 }
 
 function safeFailure(error: unknown): WorkerFailure {
-  if (error instanceof WorkerLifecycleError && error.errorCode !== "STALE_JOB") {
+  if (
+    error instanceof WorkerLifecycleError &&
+    error.errorCode !== "STALE_JOB"
+  ) {
     const errorCode = error.errorCode;
     return {
       errorCode,
@@ -155,8 +158,7 @@ export function createWorkerOrchestrator(
   jobStore: JobStore,
   options: WorkerOrchestratorOptions = {},
 ) {
-  const leaseDurationMs =
-    options.leaseDurationMs ?? DEFAULT_LEASE_DURATION_MS;
+  const leaseDurationMs = options.leaseDurationMs ?? DEFAULT_LEASE_DURATION_MS;
   const outputRetentionMs =
     options.outputRetentionMs ?? DEFAULT_OUTPUT_RETENTION_MS;
   const now = options.now ?? (() => new Date());
@@ -166,7 +168,12 @@ export function createWorkerOrchestrator(
   async function claim(message: unknown): Promise<ExportJobRecord | null> {
     const { jobId } = parseExportWorkerMessage(message);
     const job = await jobStore.get(jobId);
-    if (!job || job.status === "succeeded" || job.status === "failed" || job.status === "cancelled") {
+    if (
+      !job ||
+      job.status === "succeeded" ||
+      job.status === "failed" ||
+      job.status === "cancelled"
+    ) {
       return null;
     }
 
@@ -195,13 +202,9 @@ export function createWorkerOrchestrator(
 
   async function renewLease(job: ExportJobRecord): Promise<ExportJobRecord> {
     const currentTime = getNow(now);
-    const renewed = await jobStore.compareAndSet(
-      job.jobId,
-      job.revision,
-      {
-        leaseExpiresAt: new Date(currentTime.getTime() + leaseDurationMs),
-      },
-    );
+    const renewed = await jobStore.compareAndSet(job.jobId, job.revision, {
+      leaseExpiresAt: new Date(currentTime.getTime() + leaseDurationMs),
+    });
     if (!renewed) {
       throw new WorkerLifecycleError(
         "STALE_JOB",
