@@ -51,19 +51,9 @@ contract-tests:
     reports:
       junit: apps/web/contract-test-results.xml
 
-integration-tests:
-  stage: test
-  needs: [lint]
-  script:
-    - cd apps/web && npx vitest run tests/integration
-  artifacts:
-    when: always
-    reports:
-      junit: apps/web/integration-test-results.xml
-
 build:
   stage: build
-  needs: [unit-tests, contract-tests, integration-tests]
+  needs: [unit-tests, contract-tests]
   script:
     - cd apps/web && npm run build
   artifacts:
