@@ -1,4 +1,3 @@
-/* eslint-disable no-use-before-define */ 
 import { describe, expect, it } from "vitest";
 import {
   RedisJobStore,
@@ -27,7 +26,7 @@ class FakeRedisClient {
     return this.values.delete(key) ? 1 : 0;
   }
 
-  async watch(_key: string): Promise<void> {}
+  async watch(): Promise<void> {}
 
   async unwatch(): Promise<void> {}
 

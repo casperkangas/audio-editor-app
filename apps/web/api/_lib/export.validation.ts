@@ -1,3 +1,5 @@
+import { isSafeBlobKey } from "./blob.js";
+
 export const EXPORT_FORMATS = ["wav", "mp3", "flac", "ogg", "aac"] as const;
 export const FORMAT_POLICY_VERSION = 1;
 
@@ -418,6 +420,7 @@ export function parseExportRequest(
     !Number.isSafeInteger(input.sourceRevision) ||
     input.sourceRevision < 0 ||
     !isNonEmptyString(input.sourceBlobKey) ||
+    !isSafeBlobKey(input.sourceBlobKey, "source") ||
     !Array.isArray(operations) ||
     !operations.every(isOperationSnapshot) ||
     !isSettings(input.settings)
