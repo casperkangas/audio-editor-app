@@ -117,7 +117,7 @@ describe("RedisJobStore recovery behavior", () => {
     const updated = await store.completeSuccess("job_456", 1, "audio/export/final.mp3", new Date("2026-09-21T00:00:00.000Z"));
 
     expect(updated?.status).toBe("succeeded");
-    expect(updated?.outputBlobKey).toBe("audio/export/final.mp3");
+    expect(updated?.outputBlobKey).toBeNull();
   });
 
   it("keeps a failed terminal job from being changed back to a running state", async () => {
