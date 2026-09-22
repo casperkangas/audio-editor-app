@@ -187,7 +187,9 @@ export function createExportHandler(dependencies: ExportRouteDependencies) {
         progressPercent: job.progressPercent,
         message: "Preparing export",
       });
-    } catch (error) {
+    } 
+    catch (error) {
+      const errorE = toUnexpectedExportError();
       if (error instanceof DuplicateActiveJobError) {
         const duplicate = toExportApiError("DUPLICATE_ACTIVE_JOB");
         return response.status(duplicate.status).json({
@@ -196,10 +198,9 @@ export function createExportHandler(dependencies: ExportRouteDependencies) {
         });
       }
 
-      const error = toUnexpectedExportError();
-      return response.status(error.status).json({
-        errorCode: error.errorCode,
-        error: error.message,
+      return response.status(errorE.status).json({
+        errorCode: errorE.errorCode,
+        error: errorE.message,
       });
     }
   };

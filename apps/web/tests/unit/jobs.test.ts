@@ -27,7 +27,7 @@ class FakeRedisClient {
     return this.values.delete(key) ? 1 : 0;
   }
 
-  async watch(_key: string): Promise<void> {}
+  async watch(): Promise<void> {}
 
   async unwatch(): Promise<void> {}
 
