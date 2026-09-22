@@ -27,7 +27,7 @@ class FakeRedisClient {
     return this.values.delete(key) ? 1 : 0;
   }
 
-  async watch(): Promise<void> {}
+  async watch(_key: string): Promise<void> {} // eslint-disable-line no-use-before-define
 
   async unwatch(): Promise<void> {}
 
