@@ -80,6 +80,8 @@ function replayOps(source: AudioBuffer, ops: EditOperation[]): AudioBuffer {
 export interface EditorState {
   // File
   fileName: string;
+  sourceRevision: number;
+  operations: readonly EditOperation[];
   // Playback
   playbackState: PlaybackState;
   currentTime: number;
@@ -122,6 +124,8 @@ export function useEditor(): EditorState & EditorActions {
   const historyRef = useRef<EditHistory>(createHistory());
 
   const [fileName, setFileName] = useState("");
+  const [sourceRevision, setSourceRevision] = useState(0);
+  const [operations, setOperations] = useState<readonly EditOperation[]>([]);
   const [playbackState, setPlaybackState] = useState<PlaybackState>("idle");
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -147,6 +151,7 @@ export function useEditor(): EditorState & EditorActions {
 
   const syncHistory = useCallback((h: EditHistory) => {
     historyRef.current = h;
+    setOperations(h.present);
     setCanUndo(_canUndo(h));
     setCanRedo(_canRedo(h));
     if (!sourceRef.current) return;
@@ -185,6 +190,8 @@ export function useEditor(): EditorState & EditorActions {
       const buf = await audioEngine.loadArrayBuffer(ab);
       sourceRef.current = buf;
       historyRef.current = createHistory();
+      setOperations([]);
+      setSourceRevision((revision) => revision + 1);
       setFileName(file.name);
       setDuration(buf.duration);
       setPeaks(extractPeaks(buf, PEAKS_BUCKETS));
@@ -209,6 +216,7 @@ export function useEditor(): EditorState & EditorActions {
     audioEngine.dispose();
     sourceRef.current = null;
     historyRef.current = createHistory();
+    setOperations([]);
     setFileName("");
     setDuration(0);
     setPeaks(null);
@@ -357,6 +365,8 @@ export function useEditor(): EditorState & EditorActions {
 
   return {
     fileName,
+    sourceRevision,
+    operations,
     playbackState,
     currentTime,
     duration,

@@ -87,11 +87,11 @@ A user may upload a file that is unsupported, corrupted, too large, or otherwise
 ### Functional Requirements
 
 - **FR-001**: The system MUST allow a user to upload an audio file from their device and begin a new editing session.
-- **FR-002**: The system MUST validate uploaded files for supported type, likely audio integrity, reasonable size, and usable duration before loading them for editing.
-- **FR-003**: The system MUST reject unsupported, corrupt, or oversized files with clear, non-technical guidance that explains what the user can do next.
-- **FR-004**: The system MUST render the uploaded audio as an interactive waveform and provide playback, pause, and seeking controls.
-- **FR-005**: The system MUST allow users to select a region of the waveform and clearly indicate the selected section in the editor.
-- **FR-006**: The system MUST support trimming the selected audio region and removing a selected section from the current working result.
+- **FR-002**: The system MUST validate uploaded files for a supported type, at least one decodable audio stream, the configured maximum size, and the configured maximum duration before loading them for editing.
+- **FR-003**: The system MUST reject unsupported, corrupt, oversized, or over-duration files with clear, non-technical guidance that explains what the user can do next.
+- **FR-004**: The system MUST render the uploaded audio as an interactive waveform whose time range matches the loaded audio and provide playback, pause, and seeking controls.
+- **FR-005**: The system MUST allow users to select a region of the waveform, clearly indicate its start and end, and keep that selection aligned with the current audio timeline.
+- **FR-006**: The system MUST support both trimming the working result to the selected region and deleting the selected region from the working result.
 - **FR-007**: The system MUST support splitting the audio at a chosen point without damaging the original source material in the active editing session.
 - **FR-008**: The system MUST support basic volume adjustment and fade-in/fade-out actions without requiring technical audio knowledge.
 - **FR-009**: The system MUST maintain a non-destructive editing history so users can undo and redo changes across the current session.
@@ -103,9 +103,9 @@ A user may upload a file that is unsupported, corrupted, too large, or otherwise
 - **FR-015**: The system MUST surface understandable errors for failed uploads, unsupported files, invalid audio, conversion issues, and processing failures.
 - **FR-016**: The system MUST keep the original uploaded file available for the current editing session until it is no longer required for active work.
 - **FR-017**: The system MUST clean up temporary or obsolete files when appropriate and avoid exposing uploaded files publicly unless required by product design.
-- **FR-018**: The system MUST be designed to be responsive on common desktop and tablet devices and should consider mobile constraints without requiring a full multi-track professional editing workflow.
+- **FR-018**: The system MUST remain usable at viewport widths from 768 pixels through 2560 pixels without clipping primary controls, and MUST provide a usable fallback on smaller screens without requiring a full multi-track professional editing workflow.
 - **FR-019**: The system MUST separate interactive editing and previewing from final rendering and export work so long-running processing does not unnecessarily block the UI.
-- **FR-020**: The system MUST protect user-uploaded content as untrusted input by validating file types and applying reasonable limits for size, duration, and abusive patterns.
+- **FR-020**: The system MUST protect user-uploaded content as untrusted input by validating file type and integrity, enforcing the configured size and duration limits, and rejecting requests that exceed documented resource or operation-count limits.
 
 ### Key Entities _(include if feature involves data)_
 
@@ -120,18 +120,20 @@ A user may upload a file that is unsupported, corrupted, too large, or otherwise
 ### Measurable Outcomes
 
 - **SC-001**: A user can upload a supported audio file and begin editing within 30 seconds on a typical broadband connection during normal usage.
-- **SC-002**: A user can complete the core editing loop of upload, playback, selection, edit, preview, and export without needing technical knowledge of audio engineering.
+- **SC-002**: At least 80% of first-time participants in a usability check can complete the core editing loop of upload, playback, selection, edit, preview, and export without outside technical instruction.
 - **SC-003**: At least 90% of first-time users can successfully complete the primary value path of editing and downloading a final audio result.
 - **SC-004**: Common editing operations such as playback, seeking, selection, trim, undo, and redo feel responsive during normal use, with core interactions completing in under 200 milliseconds on a standard desktop device in typical conditions.
 - **SC-005**: At least 95% of final export or conversion attempts result in either a valid downloadable result or a clear, actionable error message rather than silent failure.
 - **SC-006**: Unsupported, corrupt, oversized, or malformed uploads are rejected before processing begins and are explained in clear language that a non-technical user can understand.
-- **SC-007**: The system can support a small-to-moderate number of concurrent user sessions while keeping interactive editing separate from long-running rendering and conversion workloads.
+- **SC-007**: The system can support at least 20 concurrent user sessions during a representative test while keeping interactive editing available and keeping long-running rendering and conversion work separate from the editing interaction.
 
 ## Assumptions
 
 - Users are working with a single audio file at a time in the initial product and are not expecting multi-track editing or professional mixing workflows.
 - Supported file formats will be limited to established common audio formats, with final format support and encoding options confirmed in the technical planning stage.
+- The default upload limit is 50 MiB and the default supported duration limit is 2 hours unless product owners approve different limits before implementation.
 - Browser-based editing will serve as the primary experience for preview and interactive changes, while final render and conversion will be handled as a separate processing stage when needed.
+- The current edit state can be reproduced from the original source and an ordered set of user-approved edit actions, so preview, undo, redo, and export use the same latest state without changing the original source.
 - The product may use a server-side or edge-based processing layer for final export, but the browser experience should remain responsive and non-destructive during the editing session.
 - Mobile support will be considered during architecture decisions, but the initial experience can prioritize desktop and tablet usability if complex waveform editing is less practical on small screens.
 - Users expect a simple, user-friendly experience rather than exposure to low-level technical audio controls or advanced production features.

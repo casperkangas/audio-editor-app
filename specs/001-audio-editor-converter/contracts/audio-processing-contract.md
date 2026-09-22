@@ -7,6 +7,11 @@ status, and worker completion. All request examples omit authentication details;
 implementation must bind each project and job to the current session or authenticated
 user.
 
+The browser editing boundary is also part of this contract: Jonas's editor sends the
+current source revision and ordered typed operations, while the API and worker reject
+unknown operation types, non-finite values, out-of-bounds ranges, and executable render
+instructions.
+
 ## 1. Client Upload Token Request
 
 ### Request
@@ -81,6 +86,11 @@ Content-Type: application/json
   "settings": { "format": "mp3", "bitrate": "192k" }
 }
 ```
+
+`sourceRevision` identifies the source snapshot used by the browser editor. The
+`operations` array is ordered and immutable for this request. Each operation has an
+allowlisted type (`trim`, `cut`, `split`, `volume`, `fade-in`, or `fade-out`) and typed
+finite parameters bounded by the source duration and operation policy.
 
 ### Response
 
@@ -211,7 +221,7 @@ job cannot be overwritten by a later failure or duplicate completion callback.
 - Supported formats and optional quality settings must be validated before execution.
 - Failure states must result in human-readable user feedback rather than raw system errors.
 
-## 6. Security & Storage Expectations
+## 7. Security & Storage Expectations
 
 - Uploaded files are treated as untrusted input.
 - Object access is restricted unless a user has an authorized session or a signed download URL.

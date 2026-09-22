@@ -1,258 +1,248 @@
 ---
-description: "Actionable tasks for the asynchronous audio export API, Vercel Blob integration, and endpoint contracts"
+description: "Actionable tasks for the browser audio editor, asynchronous export API, and FFmpeg worker"
 ---
 
-# Tasks: Audio Export and Conversion API
+# Tasks: Audio Editor and Export
 
 **Input**: Design documents from `/specs/001-audio-editor-converter/`
 
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/audio-processing-contract.md, quickstart.md
 
-**Scope**: Casper-owned implementation tasks cover Vercel Blob configuration, API routes, Redis job metadata/queue adapters, authorization, validation, endpoint contracts, and FFmpeg worker execution. React UI, browser edit-plan state, and test-harness changes remain explicitly delegated and are not silently assigned to Casper.
+**Ownership**: Jonas owns browser editor state, edit operations, serialization, and functional audio algorithms. Casper owns Blob, API, Redis, queue, and worker implementation. Tomas owns visual React interaction and layout. Paul-Henrik owns test infrastructure, fixtures, and CI.
 
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel because it affects a different file or independent contract surface.
 - **[Story]**: Required for user-story tasks and maps to the feature specification.
-- Every task includes an exact file, directory, or command scope.
+- Every task names an exact file, directory, or command scope.
 
-## Phase 1: Setup (Shared Infrastructure)
+## Phase 1: Setup
 
-**Purpose**: Establish the API/Blob implementation surface without changing frontend components or deployment ownership outside Casper's scope.
+**Purpose**: Establish the existing browser, API, and worker implementation boundaries.
 
-- [x] T001 Create the API support directory `apps/web/api/_lib/` and reserve `workers/audio-export/` for Casper's FFmpeg worker implementation described in `specs/001-audio-editor-converter/plan.md`.
-- [x] T002 [P] Add server-only environment variable documentation for `BLOB_READ_WRITE_TOKEN`, job-store credentials, queue credentials, `AUDIO_UPLOAD_MAX_SIZE_BYTES`, and retention limits in `apps/web/README.md`.
-- [ ] T003 [P] Confirm `apps/web/package.json` contains the required `@vercel/blob` and `@vercel/node` dependencies and record any queue/job-store SDK additions needed by the selected provider.
-- [ ] T004 [P] Define the provider-neutral job-store and queue adapter interfaces in `apps/web/api/_lib/jobs.ts` and `apps/web/api/_lib/queue.ts`, including atomic claim, compare-and-set update, lease expiry, and dispatch-by-job-ID operations.
+- [x] T001 Create and verify `apps/web/api/_lib/` and `workers/audio-export/` directory boundaries against `specs/001-audio-editor-converter/plan.md`.
+- [x] T002 [P] Document server-only environment variables, the 50 MiB upload default, the 2-hour duration default, and retention settings in `apps/web/README.md`.
+- [ ] T003 [P] Verify `@vercel/blob`, `@vercel/node`, `redis`, React, Vite, Vitest, and TypeScript versions in `apps/web/package.json` and record any missing dependency decision in `specs/001-audio-editor-converter/research.md`.
+- [ ] T004 [P] Define provider-neutral job-store and queue interfaces with atomic revisions, leases, TTLs, and dispatch-by-job-ID behavior in `apps/web/api/_lib/jobs.ts` and `apps/web/api/_lib/queue.ts`.
 
----
+## Phase 2: Foundational
 
-## Phase 2: Foundational (Blocking API Prerequisites)
-
-**Purpose**: Establish the security, serialization, Blob access, and error boundaries required before any export endpoint is implemented.
+**Purpose**: Establish shared contracts and security boundaries before story implementation.
 
 **CRITICAL**: User-story tasks must not begin until this phase is complete.
 
-- [ ] T005 [P] Define the canonical export request, settings, status, stage, and error-code schemas in `apps/web/api/_lib/export.validation.ts` from `contracts/audio-processing-contract.md`.
-- [ ] T006 [P] Implement private Blob object lookup and short-lived download URL helpers in `apps/web/api/_lib/blob.ts`, rejecting arbitrary keys and enforcing project/session ownership.
-- [ ] T007 Implement edit-operation validation in `apps/web/api/_lib/export.validation.ts` for allowed operation types, finite numeric parameters, duration bounds, operation count, and normalized immutable snapshots.
-- [ ] T008 Implement format and quality validation in `apps/web/api/_lib/export.validation.ts` for `wav`, `mp3`, `flac`, `ogg`, and `aac`, including lossless/lossy bitrate rules and server-derived content types/extensions.
-- [ ] T009 [P] Define stable API error mapping and redacted user-facing messages in `apps/web/api/_lib/export.validation.ts` and `apps/web/api/_lib/errors.ts`; never expose Blob credentials, worker logs, or raw FFmpeg output.
-- [ ] T010 [P] Add contract fixtures for valid requests, invalid operations, unsupported formats, invalid quality settings, unauthorized object keys, and terminal job responses in `apps/web/tests/contract/export.fixtures.ts`.
-- [ ] T011 Verify the existing direct-upload route in `apps/web/api/upload.ts` continues to use private Vercel Blob access, random suffixes, the configured size limit, and server-only credentials; update only documented contract mismatches.
+- [ ] T005 [P] Define export request, edit-operation, settings, status, stage, and error-code schemas in `apps/web/api/_lib/export.validation.ts` from `specs/001-audio-editor-converter/contracts/audio-processing-contract.md`.
+- [ ] T006 [P] Implement private Blob lookup and short-lived download URL helpers with project/session ownership checks in `apps/web/api/_lib/blob.ts`.
+- [ ] T007 Implement finite numeric, duration-bound, operation-count, and immutable-snapshot validation for trim, cut, split, volume, fade-in, and fade-out in `apps/web/api/_lib/export.validation.ts`.
+- [ ] T008 [P] Implement format and quality policy validation for WAV, MP3, FLAC, OGG, and AAC in `apps/web/api/_lib/export.validation.ts`, deriving output extensions and content types server-side.
+- [ ] T009 [P] Define redacted user-facing error mapping and verify private upload validation in `apps/web/api/_lib/errors.ts`, `apps/web/api/upload.validation.ts`, and `apps/web/api/upload.ts`.
 
-**Checkpoint**: API schemas, private Blob access, error mapping, and provider adapters are ready; no request handler performs FFmpeg work.
+**Checkpoint**: Browser state, API schemas, private Blob access, error mapping, and job adapters have clear ownership and no API handler performs FFmpeg work.
 
----
+## Phase 3: User Story 1 - Upload and Edit Audio in the Browser (Priority: P1)
 
-## Phase 3: User Story 2 - Preview and Export a Finished Result (Priority: P1) MVP
+**Goal**: Provide a responsive, non-destructive single-file editor with selection, playback, editing, undo, redo, and reproducible state.
 
-**Goal**: Accept the current non-destructive edit plan, create an asynchronous export job, expose safe status, and return a downloadable result after worker completion.
+**Independent Test**: Load `sample-sounds/example.wav`, play and seek, select a bounded region, apply each supported edit, undo and redo the change, and confirm the preview and serialized operation list match without mutating the original source.
 
-**Independent Test**: With a valid private source Blob object and mocked queue/job-store adapters, `POST /api/exports` returns a queued job, `GET /api/jobs/{jobId}` returns authorized progress, and a successful terminal job returns a short-lived download URL without exposing secrets.
+### Tests for User Story 1
+
+- [x] T010 [P] [US1] Extend operation tests for selection bounds, empty selections, duration limits, and non-mutation in `apps/web/src/lib/editing/operations.test.ts`.
+- [x] T011 [P] [US1] Extend history tests for operation ordering, redo invalidation after a new edit, and source-preserving undo/redo in `apps/web/src/lib/editing/history.test.ts`.
+- [x] T012 [P] [US1] Add serialization tests for valid snapshots, unsupported operations, non-finite parameters, source revisions, and exclusion of audio buffers in `apps/web/src/lib/editing/serializeEditPlan.test.ts`.
+- [ ] T013 [P] [US1] Add browser-flow tests for upload, waveform selection, playback, edit feedback, undo/redo, and responsive control availability in `apps/web/tests/e2e/editor-flow.test.ts`.
+
+### Jonas Implementation for User Story 1
+
+- [x] T014 [US1] Keep the original decoded source separate from the replayed working buffer and preserve selection, duration, playback, and error invariants in `apps/web/src/lib/useEditor.ts` and `apps/web/src/hooks/useAudioEngine.ts`.
+- [x] T015 [US1] Implement bounded, ordered edit-plan serialization containing `sourceRevision`, operation IDs/types/parameters, source duration, and current duration in `apps/web/src/lib/editing/serializeEditPlan.ts`.
+- [x] T016 [US1] Align the edit operation type and parameter guards with the shared contract for trim, cut, split, volume, fade-in, and fade-out in `apps/web/src/lib/types.ts` and `apps/web/src/lib/editing/operations.ts`.
+- [x] T017 [US1] Verify common playback, seeking, selection, trim, undo, and redo interactions complete within 200 milliseconds and record the result in `apps/web/src/tests/unit/editor-performance.test.ts`.
+
+### Tomas Implementation for User Story 1
+
+- [ ] T018 [US1] Keep waveform selection, playhead, loading, error, and edit-action feedback usable at 768px and 2560px widths in `apps/web/src/components/waveform/`, `apps/web/src/components/transport/`, and `apps/web/src/components/editor/`.
+- [ ] T019 [US1] Add or verify keyboard access and plain-language status feedback for selection, playback, undo, redo, and edit actions in `apps/web/src/components/toolbar/` and `apps/web/src/App.tsx`.
+
+**Checkpoint**: User Story 1 is independently testable when a user can complete the browser editing loop and the export snapshot is reproducible without source mutation.
+
+## Phase 4: User Story 2 - Preview and Export a Finished Result (Priority: P1)
+
+**Goal**: Queue the current edit snapshot, expose safe progress, and provide an authorized downloadable result.
+
+**Independent Test**: With a valid private source and mocked adapters, submit an immutable edit snapshot, receive a queued job, observe authorized progress, and download a verified result after worker completion.
 
 ### Tests for User Story 2
 
-- [ ] T012 [P] [US2] Add request/response contract tests for `POST /api/exports` in `apps/web/tests/contract/exports.route.test.ts`, covering valid preserve-format requests, invalid payloads, missing project ownership, duplicate active jobs, and queue-dispatch failure.
-- [ ] T013 [P] [US2] Add status contract tests for `GET /api/jobs/[jobId]` in `apps/web/tests/contract/jobs.route.test.ts`, covering queued, running, succeeded, failed, cancelled, unknown, and unauthorized jobs.
-- [ ] T014 [P] [US2] Add job state-transition tests in `apps/web/tests/unit/jobs.test.ts` for atomic claim, monotonic progress, terminal-state protection, lease expiry, and duplicate worker completion updates.
+- [ ] T020 [P] [US2] Add request/response contract tests for preserve-format `POST /api/exports` in `apps/web/tests/contract/exports.route.test.ts`.
+- [ ] T021 [P] [US2] Add authorized status tests for `GET /api/jobs/[jobId]` in `apps/web/tests/contract/jobs.route.test.ts`.
+- [ ] T022 [P] [US2] Add Redis job transition tests for claim, monotonic progress, lease expiry, terminal protection, and duplicate completion in `apps/web/tests/unit/jobs.test.ts`.
 
 ### Casper Implementation for User Story 2
 
-- [ ] T015 [US2] Implement project/session ownership lookup and export-job creation in `apps/web/api/_lib/jobs.ts`, storing the source Blob key, source revision, immutable edit plan, settings, status, stage, progress, retention deadline, and session binding.
-- [ ] T016 [US2] Implement `POST /api/exports` in `apps/web/api/exports.ts` to authorize the project, validate the source object and edit snapshot, reject a second active job, persist the job, dispatch only the job ID, and return queued status.
-- [ ] T017 [US2] Implement `GET /api/jobs/[jobId]` in `apps/web/api/jobs/[jobId].ts` to authorize the caller, return a bounded status read model, and sign a short-lived download URL only for a successful terminal job.
-- [ ] T018 [US2] Add idempotent worker callback/update methods to `apps/web/api/_lib/jobs.ts` for claim, progress, success, and failure updates, ensuring stale retries cannot overwrite a successful result.
-- [ ] T019 [US2] Document the worker-facing dispatch and completion payloads in `specs/001-audio-editor-converter/contracts/audio-processing-contract.md`; use the Casper-owned worker phase below as the implementation handoff boundary.
+- [ ] T023 [US2] Persist project/session ownership and immutable export jobs with source revision, operations, settings, status, progress, retention, and session binding in `apps/web/api/_lib/jobs.ts`.
+- [ ] T024 [US2] Implement `POST /api/exports` with source authorization, edit snapshot validation, one-active-job protection, Redis persistence, opaque queue dispatch, and queued response in `apps/web/api/exports.ts`.
+- [ ] T025 [US2] Implement `GET /api/jobs/[jobId]` with authorization, bounded read-model fields, terminal error mapping, and short-lived download signing in `apps/web/api/jobs/[jobId].ts`.
+- [ ] T026 [US2] Document and verify dispatch and completion payloads, including `sourceRevision` and ordered operations, in `specs/001-audio-editor-converter/contracts/audio-processing-contract.md`.
 
-### Delegated Frontend Handoff for User Story 2
+### Worker Implementation for User Story 2
 
-- [ ] T020 [US2] [Tomas] Wire the existing export controls in `apps/web/src/components/export/ExportPanel.tsx` to `POST /api/exports`, passing the current project revision and serialized edit operations; do not modify API or Blob code.
-- [ ] T021 [US2] [Tomas] Add status polling and download handling in the existing export UI, using `GET /api/jobs/{jobId}`, rendering queued/running/succeeded/failed states, and preventing duplicate submission while a job is active.
+- [x] T027 [US2] Parse `{ jobId: string }` messages and load immutable jobs in `workers/audio-export/worker.ts`.
+- [x] T028 [P] [US2] Download private sources and manage isolated temporary files in `workers/audio-export/ffmpeg.ts`.
+- [x] T029 [P] [US2] Inspect source streams, codecs, duration, and malformed containers with bounded `ffprobe` handling in `workers/audio-export/ffmpeg.ts`.
+- [x] T030 [US2] Translate typed edit operations into a constrained render plan without client-provided shell arguments in `workers/audio-export/render-plan.ts`.
+- [x] T031 [US2] Build non-interpolated FFmpeg arguments from validated operations and format policy in `workers/audio-export/ffmpeg.ts`.
+- [x] T032 [US2] Implement claim, progress, lease, success, and categorized failure orchestration with Redis compare-and-set protection in `workers/audio-export/worker.ts`.
+- [ ] T033 [P] [US2] Add worker contract tests for queue parsing, job revisions, source authorization, and safe errors in `workers/audio-export/worker.contract.test.ts`.
 
-**Checkpoint**: User Story 2 is independently testable when a valid edited project produces a queued job, observable progress, and an authorized downloadable output after worker completion.
+### Tomas Integration for User Story 2
 
----
+- [ ] T034 [US2] Wire existing export controls, queued/running/succeeded/failed states, polling, duplicate-submit protection, and download handling in `apps/web/src/components/export/ExportPanel.tsx`.
 
-## Phase 4: FFmpeg Worker Implementation (Casper-owned, supports User Stories 2-4)
-
-**Purpose**: Implement the external FFmpeg worker one independently verifiable task at a time. The worker consumes only an opaque job ID, loads authorized job data from Redis, reads and writes private Vercel Blob objects, and reports idempotent status updates. No Vercel API handler or frontend file is changed by this phase.
-
-**Independent Test**: With a configured private Blob store, Redis job record, queue message, and audio fixture, a worker run claims the job, validates the source with `ffprobe`, renders the typed edit plan, uploads a private output, verifies the output, and reaches the correct terminal state without duplicate completion or secret leakage.
-
-### Casper implementation tasks
-
-- [x] T040 [US2] Create the worker entrypoint and queue-message parser in `workers/audio-export/worker.ts`, accepting only `{ jobId: string }` and loading the immutable job record through the existing `JobStore` contract.
-- [x] T041 [P] [US2] Implement private source-object download and isolated temporary-file lifecycle in `workers/audio-export/ffmpeg.ts`, using the Blob access boundary and rejecting missing or unauthorized source objects.
-- [x] T042 [P] [US2] Implement bounded `ffprobe` input inspection in `workers/audio-export/ffmpeg.ts`, mapping missing streams, malformed containers, unsupported codecs, duration limits, and probe failures to safe worker error codes.
-- [x] T043 [US2] Implement typed edit-operation translation in `workers/audio-export/render-plan.ts` for trim, delete, split, volume, fade-in, and fade-out without accepting client-provided shell arguments or filtergraph text.
-- [x] T044 [US2] Implement the FFmpeg argument builder in `workers/audio-export/ffmpeg.ts`, deriving all flags from validated operation and format policy values and invoking the process without shell interpolation.
-- [x] T045 [US2] Implement claim, progress, lease, success, and categorized failure orchestration in `workers/audio-export/worker.ts` using Redis compare-and-set revisions and terminal-state protection.
-- [x] T046 [US3] Implement format and quality encoder mappings in `workers/audio-export/ffmpeg.ts` for WAV, MP3, FLAC, OGG, and AAC, matching the API format-policy version and rejecting unsupported combinations before execution.
-- [x] T047 [US3] Upload completed output privately through `workers/audio-export/worker.ts`, verify container, codec, duration, and extension with `ffprobe`, and call `completeSuccess` only after verification.
-- [x] T048 [US4] Implement idempotent temporary-file and failed-output cleanup in `workers/audio-export/cleanup.ts`, preserving successful job state when cleanup itself fails.
-- [x] T049 [US4] Add lease-expiry, duplicate-delivery, retry, and partial-output recovery handling across `workers/audio-export/worker.ts` and `workers/audio-export/cleanup.ts` without creating duplicate successful outputs.
-
-### Delegated integration and verification tasks
-
-- [ ] T050 [P] [US2] Paul-Henrik: add worker contract tests in `workers/audio-export/worker.contract.test.ts` for queue parsing, Redis claim/progress/completion revisions, unauthorized source access, and safe error mapping; do not change worker behavior in the test task.
-- [ ] T051 [P] [US3] Paul-Henrik: add FFmpeg fixture smoke tests in `workers/audio-export/ffmpeg.fixture.test.ts` for each supported output format, typed edit operations, output metadata, and private-output verification.
-- [ ] T052 [P] [US4] Paul-Henrik: add worker recovery tests in `workers/audio-export/worker.recovery.test.ts` for probe failure, FFmpeg failure, lease expiry, duplicate delivery, cleanup failure, and retry after a terminal failure.
-- [ ] T053 [US2] Jonas: confirm browser edit-plan serialization emits the contract fields consumed by `workers/audio-export/worker.ts` and record any required frontend/state changes in the handoff; do not implement worker or API changes in this task.
-- [ ] T054 [US2] Tomas: validate the existing export UI against queued/running/succeeded/failed responses after the worker contract is stable; do not change worker, API, Blob, or Redis code in this task.
-
-**Checkpoint**: Casper-owned worker execution is complete when a queue message can produce one verified private output or one safe terminal failure, with Redis revisions and cleanup remaining idempotent. Delegated tests and frontend/browser handoffs are complete when their owners verify the published contracts.
-
-### Worker execution order
-
-Complete the Casper-owned worker tasks one at a time in this order: T040, T041, T042, T043, T044, T045, T046, T047, T048, and T049. T041/T042 may be implemented independently after T040; T043/T044 depend on the typed operation model; T045 depends on the worker primitives; T046/T047 extend the stable renderer; and T048/T049 complete recovery and cleanup after terminal transitions are defined.
-
----
+**Checkpoint**: User Story 2 is independently testable when a valid browser edit snapshot produces one authorized queued job and one verified downloadable result.
 
 ## Phase 5: User Story 3 - Convert the Edited Audio (Priority: P2)
 
-**Goal**: Support validated target-format conversion and quality settings without moving FFmpeg work into Vercel API handlers.
+**Goal**: Support validated format and quality conversion without moving FFmpeg work into API handlers.
 
-**Independent Test**: Submit a valid conversion request for each supported format and allowed quality preset; verify the API queues the correct immutable settings, rejects invalid combinations before dispatch, and exposes the completed output through the same authorized status route.
+**Independent Test**: Submit one valid request for each supported format and quality policy, reject invalid combinations before dispatch, and verify terminal output metadata.
 
-### Tests for User Story 3
+- [ ] T035 [P] [US3] Add format and quality validation tests for WAV, MP3, FLAC, OGG, and AAC in `apps/web/tests/unit/export.validation.test.ts`.
+- [ ] T036 [P] [US3] Add conversion request and output metadata contract tests in `apps/web/tests/contract/exports.conversion.test.ts` and `apps/web/tests/contract/jobs.conversion.test.ts`.
+- [ ] T037 [US3] Extend validated conversion settings and server-derived output metadata in `apps/web/api/exports.ts`.
+- [ ] T038 [US3] Add shared format-policy versioning to detect API/worker drift in `apps/web/api/_lib/export.validation.ts`.
+- [x] T039 [US3] Implement WAV, MP3, FLAC, OGG, and AAC encoder mappings in `workers/audio-export/ffmpeg.ts`.
+- [x] T040 [US3] Verify output container, codec, duration, extension, and private storage before success in `workers/audio-export/worker.ts`.
+- [ ] T041 [P] [US3] Wire format and quality controls and conversion progress/retry states in `apps/web/src/components/export/ExportPanel.tsx`.
+- [ ] T042 [P] [US3] Add FFmpeg fixture smoke tests for each supported format and typed edit operation in `workers/audio-export/ffmpeg.fixture.test.ts`.
 
-- [ ] T022 [P] [US3] Add format/quality contract tests in `apps/web/tests/unit/export.validation.test.ts` for WAV, MP3, FLAC, OGG, and AAC, including rejected bitrate combinations and unsupported codecs.
-- [ ] T023 [P] [US3] Add conversion request tests in `apps/web/tests/contract/exports.conversion.test.ts` verifying settings are persisted exactly once and forwarded to the queue by job ID only.
-- [ ] T024 [P] [US3] Add output metadata contract fixtures in `apps/web/tests/contract/jobs.conversion.test.ts` for signed download URL, derived content type, extension, and terminal conversion errors.
-
-### Casper Implementation for User Story 3
-
-- [ ] T025 [US3] Extend `apps/web/api/exports.ts` to accept validated conversion settings while deriving output extension/content type server-side and preserving the immutable source revision.
-- [ ] T026 [US3] Add shared format-policy versioning in `apps/web/api/_lib/export.validation.ts` so API validation and worker validation can detect policy drift before processing.
-- [ ] T027 [US3] Add retention and cleanup scheduling metadata for generated outputs in `apps/web/api/_lib/jobs.ts` and `apps/web/api/_lib/blob.ts`, keeping cleanup idempotent and separate from request-time FFmpeg work.
-
-### Delegated Frontend Handoff for User Story 3
-
-- [ ] T028 [US3] [Tomas] Wire the existing format and quality controls in `apps/web/src/components/export/ExportPanel.tsx` to the validated `settings` payload and display only options returned or supported by the API contract.
-- [ ] T029 [US3] [Tomas] Update the existing export UI to show conversion progress, actionable failure messages, retry, and download states without exposing worker or storage implementation details.
-
-**Checkpoint**: User Story 3 is independently testable when each supported conversion request is validated, queued, completed by the worker handoff, and downloaded through the authorized status contract.
-
----
+**Checkpoint**: User Story 3 is independently testable when all supported conversions obey the shared policy and produce verified private outputs.
 
 ## Phase 6: User Story 4 - Recover from Invalid Files and Processing Issues (Priority: P2)
 
-**Goal**: Reject unsafe or invalid export requests clearly, preserve session usability, and expose only actionable processing failures.
+**Goal**: Reject unsafe input safely, preserve session usability, and recover from worker failures without leaking implementation details.
 
-**Independent Test**: Submit unsupported formats, malformed operations, foreign Blob keys, missing jobs, duplicate jobs, and simulated worker failures; verify safe 4xx responses or terminal error states followed by a successful retry with valid input.
+**Independent Test**: Submit invalid files, malformed operations, foreign keys, duplicate jobs, and simulated worker failures; verify safe rejection or terminal failure followed by a valid retry.
 
-- [ ] T030 [P] [US4] Add security regression tests in `apps/web/tests/contract/export.security.test.ts` for foreign Blob keys, path traversal-like keys, missing session binding, credential redaction, and no job creation after rejected validation.
-- [ ] T031 [P] [US4] Add retry and recovery tests in `apps/web/tests/unit/jobs.recovery.test.ts` for queue failure, worker lease expiry, duplicate completion, output cleanup failure, and valid retry after a terminal failure.
-- [ ] T032 [US4] Refine safe status/error mapping in `apps/web/api/exports.ts` and `apps/web/api/jobs/[jobId].ts` so invalid input returns 4xx, infrastructure failures return redacted 5xx responses, and unknown/unauthorized jobs do not reveal existence.
-- [ ] T033 [US4] Add retention cleanup and stale-job recovery hooks to `apps/web/api/_lib/jobs.ts` and `apps/web/api/_lib/blob.ts`, recording cleanup failures without changing a completed job back to failed.
-- [ ] T034 [US4] Document invalid-input, retry, expired-download, missing-credential, and worker-unavailable recovery behavior in `apps/web/README.md` and `specs/001-audio-editor-converter/quickstart.md`.
+- [ ] T043 [P] [US4] Add security regression tests for foreign keys, path-like keys, missing sessions, credential redaction, and no job creation after rejection in `apps/web/tests/contract/export.security.test.ts`.
+- [ ] T044 [P] [US4] Add retry, lease-expiry, duplicate-completion, and cleanup-failure tests in `apps/web/tests/unit/jobs.recovery.test.ts`.
+- [ ] T045 [US4] Refine safe 4xx/5xx and unknown-job mapping in `apps/web/api/exports.ts` and `apps/web/api/jobs/[jobId].ts`.
+- [x] T046 [US4] Clean up temporary files and failed outputs idempotently in `workers/audio-export/cleanup.ts`.
+- [x] T047 [US4] Handle lease expiry, duplicate delivery, retries, and partial-output recovery without duplicate success in `workers/audio-export/worker.ts` and `workers/audio-export/cleanup.ts`.
+- [ ] T048 [US4] Document invalid-input, retry, expired-download, missing-credential, and worker-unavailable recovery in `apps/web/README.md` and `specs/001-audio-editor-converter/quickstart.md`.
+- [ ] T049 [P] [US4] Add worker recovery tests for probe failure, FFmpeg failure, lease expiry, duplicate delivery, cleanup failure, and terminal retry behavior in `workers/audio-export/worker.recovery.test.ts`.
 
-**Checkpoint**: User Story 4 is independently testable when unsafe requests fail before dispatch, processing failures are actionable, and a later valid request can proceed safely.
-
----
+**Checkpoint**: User Story 4 is independently testable when unsafe requests fail before dispatch and later valid work can proceed safely.
 
 ## Phase 7: Polish and Cross-Cutting Concerns
 
-**Purpose**: Validate the Casper-owned API surface against the constitution, contracts, and deployment assumptions.
+- [ ] T050 [P] Run `npm test`, `npm run lint`, and `npm run build` from `apps/web/` and record prerequisites in `apps/web/README.md`.
+- [ ] T051 [P] Run the upload-to-download flow and record evidence for SC-001, SC-002, SC-005, and SC-006 in `specs/001-audio-editor-converter/quickstart.md`.
+- [ ] T052 [P] Run the 20-session concurrency and sub-200ms interaction checks and record evidence for SC-004 and SC-007 in `specs/001-audio-editor-converter/quickstart.md`.
+- [ ] T053 Verify no FFmpeg process is spawned by `apps/web/api/exports.ts` or `apps/web/api/jobs/[jobId].ts` and document the worker boundary in `specs/001-audio-editor-converter/contracts/audio-processing-contract.md`.
+- [ ] T054 [P] Run `git diff --check` and a secret scan over `apps/web/`, `workers/audio-export/`, and feature documentation.
+- [ ] T055 Confirm changed files respect Casper, Jonas, Tomas, and Paul-Henrik ownership boundaries in `specs/001-audio-editor-converter/quickstart.md`.
+- [x] T056 [US1] Jonas: implement transient Help/Account popover state and action handlers in `apps/web/src/App.tsx`, including one-open-at-a-time behavior, Escape/outside dismissal, focus return, and no Account navigation or network request.
+- [ ] T057 [P] [US1] Tomas: implement the responsive Help and Account popover presentation, accessible labels, shortcut/status copy, and 768px/2560px layouts in `apps/web/src/App.tsx` and `apps/web/src/App.css`.
+- [ ] T058 [P] [US1] Paul-Henrik: add interaction tests for Help/Account keyboard activation, Escape dismissal, focus return, responsive visibility, and no Account request in `apps/web/tests/e2e/header-controls.test.ts`.
 
-- [ ] T035 [P] Run `npm test`, `npm run lint`, and `npm run build` from `apps/web/` after API and contract changes; record required environment prerequisites in `apps/web/README.md`.
-- [ ] T036 [P] Run the API contract suite with mocked Blob, job-store, and queue adapters and record evidence for `SC-005`, `SC-006`, and `SC-007` in `specs/001-audio-editor-converter/quickstart.md`.
-- [ ] T037 Verify no FFmpeg process is spawned by `apps/web/api/exports.ts` or `apps/web/api/jobs/[jobId].ts`; document the worker boundary and queue payload in the contract.
-- [ ] T038 [P] Run `git diff --check` and a secret scan over `apps/web/api/`, `apps/web/src/`, worker handoff documentation, and generated client assets; resolve any credential exposure.
-- [ ] T039 Confirm final changed files respect team ownership: Casper-owned API/Blob/contract files are implemented, Tomas-owned UI tasks remain delegated, and worker/logic work has explicit owner handoffs in `specs/001-audio-editor-converter/quickstart.md`.
-
----
-
-## Dependencies & Execution Order
+## Dependencies and Execution Order
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies; establishes provider and file boundaries.
-- **Foundational (Phase 2)**: Depends on Setup and blocks all user-story implementation.
-- **User Story 1 (Phase 3)**: Upload and browser editing are existing prerequisites; upload changes are limited to the foundational Blob contract check in T011.
-- **User Story 2 (Phase 3)**: Depends on the foundational schemas, Blob helpers, and job/queue adapters; this is the MVP API slice.
-- **FFmpeg Worker (Phase 4)**: Depends on T019 and the completed API/Blob/Redis contracts; T050-T054 are delegated verification and integration handoffs.
-- **User Story 3 (Phase 5)**: Depends on User Story 2's job lifecycle and status contract plus the worker's format/quality implementation.
-- **User Story 4 (Phase 6)**: Depends on shared validation, job state behavior, and worker recovery handling from User Story 2.
-- **Polish (Phase 7)**: Depends on the desired API stories and their delegated worker/UI handoffs being reviewed.
+- **Setup**: No dependencies; establishes the repository boundaries.
+- **Foundational**: Depends on Setup and blocks all user stories.
+- **User Story 1**: Depends on the foundational validation policies and is the browser-editor baseline.
+- **User Story 2**: Depends on User Story 1 serialization and the foundational API/job contracts; this is the P1 export increment.
+- **User Story 3**: Depends on User Story 2 job lifecycle and worker renderer.
+- **User Story 4**: Depends on shared validation, job transitions, and worker recovery primitives.
+- **Polish**: Depends on the stories and delegated owner handoffs being complete.
 
 ### User Story Dependencies
 
-- **User Story 1 (P1)**: Upload and browser editing are existing prerequisites; this task list does not duplicate their frontend implementation.
-- **User Story 2 (P1)**: Starts after Phase 2 and is the MVP export API increment; its frontend preview behavior remains a Jonas/Tomas responsibility.
-- **User Story 3 (P2)**: Extends User Story 2 with format and quality validation.
-- **User Story 4 (P2)**: Reuses User Story 2 and User Story 3 error/state boundaries for recovery behavior.
-
-### Within Each User Story
-
-- Contract and unit tests precede implementation changes where the task is test-first.
-- Validation and ownership checks precede route dispatch.
-- Job persistence and queue dispatch precede frontend polling handoff.
-- API work precedes worker and UI integration validation.
+- **US1 (P1)**: No story dependency; required for every later story because it produces the immutable edit snapshot.
+- **US2 (P1)**: Depends on US1 serialization and Phase 2 API foundations.
+- **US3 (P2)**: Depends on US2 job lifecycle and worker renderer.
+- **US4 (P2)**: Reuses US2 and US3 error, cleanup, and recovery boundaries.
 
 ### Parallel Opportunities
 
-- T002, T003, T004, T005, T006, T009, and T010 can run in parallel during setup/foundation when they touch separate files.
-- T012, T013, and T014 can run in parallel because they cover separate contract/state-test surfaces.
-- T020 and T021 can run in parallel with each other after the API response contract is stable, but both are delegated to Tomas.
-- T022, T023, and T024 can run in parallel before conversion implementation.
-- T041, T042, T050, and T051 can run in parallel after the worker directory and contract boundary exist.
-- T043 and T046 can run in parallel after the typed operation and format policies are available.
-- T048, T052, and T053 can run in parallel after worker orchestration is stable; T054 follows the published API response contract.
-- T030 and T031 can run in parallel because they cover security and recovery tests separately.
-- T035, T036, and T038 can run in parallel after implementation changes settle.
+- T003-T009 can run in parallel when they touch separate setup and validation surfaces.
+- T010-T013 can run in parallel because they cover independent browser test surfaces.
+- T018-T019 can run in parallel with Jonas's state work after the editor action contract is stable.
+- T020-T022 can run in parallel before US2 route implementation.
+- T028-T029 and T033 can run in parallel after T027 establishes the worker message boundary.
+- T035-T036 and T041-T042 can run in parallel before US3 implementation settles.
+- T043-T044 and T049 can run in parallel because they cover separate security and recovery surfaces.
+- T050-T054 can run in parallel after implementation changes settle.
+- T056-T058 can run in parallel after the editor action and accessibility contract is agreed; T057 and T058 depend on Jonas's state/action surface.
 
-## Parallel Example: User Story 2
+## Parallel Examples
+
+### User Story 1
 
 ```text
-Task T012: Contract tests for POST /api/exports
-Task T013: Contract tests for GET /api/jobs/[jobId]
-Task T014: Job state-transition tests
-Task T020: Tomas wires existing export controls to POST /api/exports
-Task T021: Tomas wires polling/download handling to GET /api/jobs/{jobId}
+Task T010: Operation boundary tests
+Task T011: History behavior tests
+Task T012: Edit-plan serialization tests
+Task T013: Browser-flow tests
 ```
 
-## Parallel Example: User Story 3
+### User Story 2
 
 ```text
-Task T022: Format and quality validation tests
-Task T023: Conversion request contract tests
-Task T024: Conversion output contract fixtures
-Task T028: Tomas wires existing format/quality controls
-Task T029: Tomas wires conversion progress and retry states
+Task T020: Export route contract tests
+Task T021: Job status contract tests
+Task T022: Redis state-transition tests
+Task T033: Worker contract tests
+```
+
+### User Story 3
+
+```text
+Task T035: Format and quality tests
+Task T036: Conversion contract tests
+Task T042: FFmpeg fixture smoke tests
+```
+
+### User Story 4
+
+```text
+Task T043: Security regression tests
+Task T044: Job recovery tests
+Task T049: Worker recovery tests
 ```
 
 ## Implementation Strategy
 
 ### MVP First
 
-1. Complete Phase 1 setup and Phase 2 API foundations.
-2. Implement User Story 2 API routes, private Blob authorization, durable job state, and queue dispatch.
-3. Complete Casper's Phase 4 worker tasks T040-T049 against the published contracts.
-4. Complete the delegated test and UI/browser handoffs T050-T054.
-5. Validate User Story 2 independently with mocked adapters and a configured end-to-end environment.
-6. Stop at the MVP checkpoint before adding conversion policy breadth or recovery hardening.
+1. Complete Setup and Foundational phases.
+2. Complete User Story 1 so Jonas's browser edit state and serialization are independently verified.
+3. Complete User Story 2 preserve-format export and its worker handoff.
+4. Stop at the combined US1 + US2 MVP checkpoint before adding conversion breadth or recovery hardening.
 
 ### Incremental Delivery
 
-1. Private upload and API foundation.
-2. User Story 2: asynchronous preserve-format export and authorized download.
-3. User Story 3: validated conversion formats and quality settings.
-4. User Story 4: security, failure recovery, cleanup, and stale-job handling.
-5. Cross-cutting validation and deployment review.
+1. Browser editing and reproducible edit snapshots.
+2. Asynchronous preserve-format export and authorized download.
+3. Validated conversion formats and quality settings.
+4. Security, cleanup, retry, and stale-job recovery.
+5. Cross-cutting performance, concurrency, accessibility, and ownership review.
 
 ## Ownership Notes
 
-- **Casper**: Implement T001-T019, T022-T027, T030-T049 where they touch API routes, Vercel Blob access/configuration, Redis job metadata/queue adapters, endpoint contracts, FFmpeg worker execution, or infrastructure documentation.
-- **Tomas**: Implement delegated UI tasks T020, T021, T028, and T029 in the existing export components; these tasks do not authorize API or Blob changes.
-- **Jonas**: Own browser edit-plan serialization and core application state needed to produce the `operations` and `sourceRevision` payload consumed by T016.
-- **Paul-Henrik**: Own delegated worker/API contract tests, FFmpeg fixture checks, CI/test infrastructure, and test-suite pipeline integration; Casper owns worker implementation and API behavior.
+- **Jonas**: T010-T017 and T056; owns browser edit operations, source-preserving state, history, serialization, functional latency checks, and top-right control behavior/state.
+- **Casper**: T001-T009, T023-T033, T037-T040, T045-T047, and T053; owns API, Blob, Redis, queue, worker, and infrastructure boundaries.
+- **Tomas**: T018-T019, T034, T041, and T057; owns React interaction, visual layout, feedback, and responsive behavior.
+- **Paul-Henrik**: T013, T033, T042-T044, T049, T058, and CI portions of T050; owns test infrastructure and fixture execution without changing product behavior.
 
 ## Completion Criteria
 
-- All Casper-owned tasks have a concrete file path and remain within API, Vercel Blob, Redis, job-adapter, endpoint-contract, FFmpeg, or infrastructure-documentation scope.
-- Delegated Tomas tasks are explicitly labeled and do not assign frontend implementation to Casper.
-- Every task follows the required `- [ ] T### [P?] [US#] Description` checklist format, with no story label on Setup, Foundational, or Polish tasks.
-- User Story 2 is independently testable as the MVP API increment.
-- No API handler performs FFmpeg work or exposes Blob credentials.
+- Every task follows `- [ ] T### [P?] [US#] Description` with a concrete path or command scope.
+- User Story 1 covers browser upload, playback, selection, editing, undo/redo, serialization, accessibility, and measurable responsiveness.
+- User Story 2 is independently testable as the P1 export increment.
+- User Stories 3 and 4 cover conversion policy and failure recovery without moving FFmpeg into API handlers.
+- All completed worker tasks remain marked `[x]`; new work remains unchecked.
+- Top-right controls have an explicit Jonas behavior task, Tomas presentation task, and Paul-Henrik interaction-test task.
+- No API handler exposes Blob credentials or performs FFmpeg work.

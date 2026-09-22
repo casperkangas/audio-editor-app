@@ -1,4 +1,4 @@
-# Quickstart: Validate Audio Export Infrastructure
+# Quickstart: Validate Audio Editing and Export
 
 ## Prerequisites
 
@@ -8,6 +8,8 @@
 - The selected durable job store and queue/worker dispatch credentials configured.
 - An FFmpeg/ffprobe-capable worker with access to private Blob objects.
 - A valid fixture such as `sample-sounds/example.wav`.
+- A browser capable of the Web Audio API and a viewport at least 768 pixels wide for
+  the primary responsive validation path.
 
 ## Local Checks
 
@@ -21,6 +23,32 @@ npm run build
 
 These checks cover upload validation and the API validation/state adapters once
 implemented. Worker tests must run in the worker package/runtime with FFmpeg available.
+
+## Browser Editor Validation
+
+1. Open the app and load `sample-sounds/example.wav`.
+2. Confirm the waveform duration matches the loaded audio and the playhead follows
+  playback and seeking.
+3. Select a bounded region and confirm the start/end selection remains aligned while the
+  timeline changes.
+4. Apply trim, delete, split, volume, fade-in, and fade-out actions where applicable.
+5. Confirm each edit updates the preview without changing the original source, and that
+  undo and redo restore the expected operation sequence.
+6. Confirm the serialized export snapshot contains `sourceRevision` and ordered typed
+  operations, but no audio buffer or executable rendering text.
+7. Repeat the interaction at 768px and 2560px widths; primary controls must remain usable.
+
+## Top-Right Controls Validation
+
+1. Activate Help with a pointer and keyboard; confirm a clearly labelled popover opens
+  with the current editor actions and keyboard shortcuts.
+2. Activate Account; confirm a session/privacy popover opens and states that no account is
+  required and files remain tied to the current session.
+3. Press Escape and activate outside each popover; confirm it closes and focus returns to
+  the originating control.
+4. Confirm the Account control makes no navigation or network request in the MVP.
+5. Repeat at 768px and 2560px widths; popover content must remain readable and must not
+  cover the primary editor controls.
 
 ## Functional Validation Scenarios
 
@@ -59,6 +87,10 @@ is visible, and the browser downloads a valid output without receiving storage s
 - Confirm progress updates and terminal states survive API process restarts.
 - Confirm stale temporary artifacts are cleaned up after success or failure.
 - Confirm invalid or malicious inputs are rejected before worker dispatch.
+- Run a representative 20-session concurrency check and confirm editor interactions remain
+  available while exports are processed asynchronously.
+- Measure playback, seeking, selection, trim, undo, and redo interactions; each common
+  interaction should complete within 200 milliseconds under normal conditions.
 
 ## Success Criteria for the Quickstart
 
@@ -71,6 +103,8 @@ clear feedback during upload, editing, export, and errors.
   and retention configuration.
 - Jonas: serialization of the edit plan and browser state contract feeding export.
 - Tomas: export controls, progress states, retry/download interaction, and error copy.
+- Tomas: top-right Help and Account popovers, including responsive placement and keyboard
+  interaction. Jonas supplies editor shortcut/state values; no account backend is required.
 - Paul-Henrik: route/worker contract tests, FFmpeg fixture checks, and CI gates.
 
 See [data-model.md](data-model.md) and

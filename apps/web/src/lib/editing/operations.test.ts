@@ -113,6 +113,13 @@ describe('applyCut', () => {
     const result = applyCut(buf, { startTime: 0.2, endTime: 0.4 });
     expect(getChannel(result)).toEqual([1, 2]);
   });
+
+  it('does not mutate the source when the selected region is empty', () => {
+    const buf = makeBuffer([1, 2, 3]);
+    const result = applyCut(buf, { startTime: 0.2, endTime: 0.2 });
+    expect(getChannel(result)).toEqual([1, 2, 3]);
+    expect(getChannel(buf)).toEqual([1, 2, 3]);
+  });
 });
 
 // ─── applySplit ───────────────────────────────────────────────────────────

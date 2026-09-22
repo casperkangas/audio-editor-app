@@ -33,6 +33,7 @@
 
 - [x] All checklist items passed during specification review.
 - [x] No unresolved clarification items remain at this stage.
-- [x] Assumptions were documented for format support, file limits, processing separation, and mobile prioritization.
+- [x] Assumptions were documented for format support, 50 MiB and 2-hour default limits, processing separation, mobile fallback, and reproducible edit state.
+- [x] Browser editing requirements define waveform selection, non-destructive edit state, and measurable viewport and concurrency expectations for Jonas's implementation handoff.
 
 This specification is ready to move to the planning phase and should be reviewed in the next step for technical architecture and delivery planning.

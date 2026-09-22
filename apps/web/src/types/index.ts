@@ -146,5 +146,5 @@ export const SUPPORTED_MIME_TYPES = [
   'audio/mp4',
 ] as const;
 
-export const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
-export const MAX_DURATION_SECONDS = 60 * 60;           // 1 hour
+export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MiB
+export const MAX_DURATION_SECONDS = 2 * 60 * 60;     // 2 hours

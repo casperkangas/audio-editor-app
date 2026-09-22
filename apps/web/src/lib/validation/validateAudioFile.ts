@@ -11,8 +11,8 @@ export const SUPPORTED_MIME_TYPES = [
 ] as const;
 
 // Limits (FR-002, SC-006)
-export const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB
-export const MAX_DURATION_SECONDS = 3600;              // 1 hour
+export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MiB
+export const MAX_DURATION_SECONDS = 2 * 60 * 60;     // 2 hours
 
 export type ValidationResult =
   | { valid: true }
