@@ -119,8 +119,8 @@ description: "Actionable tasks for the browser audio editor, asynchronous export
 - [ ] T042 [P] [US3] Add FFmpeg fixture smoke tests for each supported format and typed edit operation in `workers/audio-export/ffmpeg.fixture.test.ts`.
 
 - [x] T022 [P] [US3] Add format/quality contract tests in `apps/web/tests/unit/export.validation.test.ts` for WAV, MP3, FLAC, OGG, and AAC, including rejected bitrate combinations and unsupported codecs.
-- [ ] T023 [P] [US3] Add conversion request tests in `apps/web/tests/contract/exports.conversion.test.ts` verifying settings are persisted exactly once and forwarded to the queue by job ID only.
-- [ ] T024 [P] [US3] Add output metadata contract fixtures in `apps/web/tests/contract/jobs.conversion.test.ts` for signed download URL, derived content type, extension, and terminal conversion errors.
+- [x] T023 [P] [US3] Add conversion request tests in `apps/web/tests/contract/exports.conversion.test.ts` verifying settings are persisted exactly once and forwarded to the queue by job ID only.
+- [x] T024 [P] [US3] Add output metadata contract fixtures in `apps/web/tests/contract/jobs.conversion.test.ts` for signed download URL, derived content type, extension, and terminal conversion errors.
 
 ### Casper Implementation for User Story 3
 
@@ -143,13 +143,11 @@ description: "Actionable tasks for the browser audio editor, asynchronous export
 
 **Independent Test**: Submit invalid files, malformed operations, foreign keys, duplicate jobs, and simulated worker failures; verify safe rejection or terminal failure followed by a valid retry.
 
-- [ ] T043 [P] [US4] Add security regression tests for foreign keys, path-like keys, missing sessions, credential redaction, and no job creation after rejection in `apps/web/tests/contract/export.security.test.ts`.
-- [ ] T044 [P] [US4] Add retry, lease-expiry, duplicate-completion, and cleanup-failure tests in `apps/web/tests/unit/jobs.recovery.test.ts`.
-- [ ] T045 [US4] Refine safe 4xx/5xx and unknown-job mapping in `apps/web/api/exports.ts` and `apps/web/api/jobs/[jobId].ts`.
-- [x] T046 [US4] Clean up temporary files and failed outputs idempotently in `workers/audio-export/cleanup.ts`.
-- [x] T047 [US4] Handle lease expiry, duplicate delivery, retries, and partial-output recovery without duplicate success in `workers/audio-export/worker.ts` and `workers/audio-export/cleanup.ts`.
-- [ ] T048 [US4] Document invalid-input, retry, expired-download, missing-credential, and worker-unavailable recovery in `apps/web/README.md` and `specs/001-audio-editor-converter/quickstart.md`.
-- [ ] T049 [P] [US4] Add worker recovery tests for probe failure, FFmpeg failure, lease expiry, duplicate delivery, cleanup failure, and terminal retry behavior in `workers/audio-export/worker.recovery.test.ts`.
+- [x] T030 [P] [US4] Add security regression tests in `apps/web/tests/contract/export.security.test.ts` for foreign Blob keys, path traversal-like keys, missing session binding, credential redaction, and no job creation after rejected validation.
+- [x] T031 [P] [US4] Add retry and recovery tests in `apps/web/tests/unit/jobs.recovery.test.ts` for queue failure, worker lease expiry, duplicate completion, output cleanup failure, and valid retry after a terminal failure.
+- [x] T032 [US4] Refine safe status/error mapping in `apps/web/api/exports.ts` and `apps/web/api/jobs/[jobId].ts` so invalid input returns 4xx, infrastructure failures return redacted 5xx responses, and unknown/unauthorized jobs do not reveal existence.
+- [x] T033 [US4] Add retention cleanup and stale-job recovery hooks to `apps/web/api/_lib/jobs.ts` and `apps/web/api/_lib/blob.ts`, recording cleanup failures without changing a completed job back to failed.
+- [x] T034 [US4] Document invalid-input, retry, expired-download, missing-credential, and worker-unavailable recovery behavior in `apps/web/README.md` and `specs/001-audio-editor-converter/quickstart.md`.
 
 **Checkpoint**: User Story 4 is independently testable when unsafe requests fail before dispatch and later valid work can proceed safely.
 
@@ -165,7 +163,15 @@ description: "Actionable tasks for the browser audio editor, asynchronous export
 - [ ] T057 [P] [US1] Tomas: implement the responsive Help and Account popover presentation, accessible labels, shortcut/status copy, and 768px/2560px layouts in `apps/web/src/App.tsx` and `apps/web/src/App.css`.
 - [ ] T058 [P] [US1] Paul-Henrik: add interaction tests for Help/Account keyboard activation, Escape dismissal, focus return, responsive visibility, and no Account request in `apps/web/tests/e2e/header-controls.test.ts`.
 
-## Dependencies and Execution Order
+- [x] T035 [P] Run `npm test`, `npm run lint`, and `npm run build` from `apps/web/` after API and contract changes; record required environment prerequisites in `apps/web/README.md`.
+- [x] T036 [P] Run the API contract suite with mocked Blob, job-store, and queue adapters and record evidence for `SC-005`, `SC-006`, and `SC-007` in `specs/001-audio-editor-converter/quickstart.md`.
+- [x] T037 Verify no FFmpeg process is spawned by `apps/web/api/exports.ts` or `apps/web/api/jobs/[jobId].ts`; document the worker boundary and queue payload in the contract.
+- [x] T038 [P] Run `git diff --check` and a secret scan over `apps/web/api/`, `apps/web/src/`, worker handoff documentation, and generated client assets; resolve any credential exposure.
+- [x] T039 Confirm final changed files respect team ownership: Casper-owned API/Blob/contract files are implemented, Tomas-owned UI tasks remain delegated, and worker/logic work has explicit owner handoffs in `specs/001-audio-editor-converter/quickstart.md`.
+
+---
+
+## Dependencies & Execution Order
 
 ### Phase Dependencies
 

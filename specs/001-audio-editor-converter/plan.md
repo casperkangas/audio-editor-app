@@ -194,6 +194,38 @@ second server application or duplicating the existing editor state.
     focus return, viewport widths from 768px through 2560px, and no navigation or network
     request caused by the Account control.
 
+## Analysis-Driven Follow-up Plan
+
+The current feature specification is internally consistent with the constitution and has no CRITICAL requirement conflicts. The remaining work is primarily verification-driven: the implementation is largely in place, but the project still needs evidence for conversion behavior, worker boundary correctness, recovery paths, and release validation.
+
+### Immediate priority order
+
+1. Conversion contract validation
+   - Complete T023 and T024 to verify the payload contract for conversion requests and download metadata.
+   - Confirm that output format, bitrate, MIME type, extension, and error responses align between API validation and worker execution.
+
+2. Worker verification and contract confidence
+   - Complete T050, T051, and T052 to validate the worker queue contract, ffprobe integration, and recovery flows.
+   - Keep the worker boundary strict: no FFmpeg invocation inside Vercel request handlers.
+
+3. Security and recovery hardening
+   - Complete T030 and T031 for foreign-key rejection, retry logic, lease expiry, duplicate completion protection, and cleanup behavior.
+   - Use these tests as the release gate for user-upload safety and invalid-input handling.
+
+4. Deployment and evidence gates
+   - Complete T035, T036, and T038 to run the web validation commands, capture evidence for SC-005/SC-006/SC-007, and scan for credential leakage.
+   - Record the exact results in the quickstart and CI evidence trail before sign-off.
+
+5. Final ownership and UI handoff review
+   - Complete T028, T029, T053, T054, and T039 to confirm the frontend controls, progress UX, and ownership boundaries are all in place and documented.
+
+### Success conditions for the next milestone
+
+- All conversion and worker contract tests pass with verified output artifacts or safe terminal failures.
+- Invalid and malicious input paths fail before dispatch and never leak internal metadata.
+- The repository passes the required test, lint, build, and secret-scan gates.
+- The final handoff documentation matches the implementation boundaries defined in the constitution and plan.
+
 ## Complexity Tracking
 
 No constitution violations requiring justified exceptions were identified.

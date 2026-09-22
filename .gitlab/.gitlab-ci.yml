@@ -1,6 +1,8 @@
 # Gitlab CI file
 # Includes four stages: install, lint, test, build.
-# All are manual and before merging into main, run the tests for validation.
+# First job is manual by design, 
+# thus ensuring that the CI is not triggered automatically.
+# Test Engineer triggers CI before merging to main branch.
 default:
   image: node:latest
 
@@ -29,19 +31,39 @@ lint:
   script:
     - cd apps/web && npm run lint
 
-test:
+unit-tests:
   stage: test
   needs: [lint]
   script:
-    - cd apps/web && npm run test
+    - cd apps/web && npx vitest run tests/unit
   artifacts:
     when: always
     reports:
-      junit: apps/web/test-results.xml
+      junit: apps/web/unit-test-results.xml
+
+contract-tests:
+  stage: test
+  needs: [lint]
+  script:
+    - cd apps/web && npx vitest run tests/contract
+  artifacts:
+    when: always
+    reports:
+      junit: apps/web/contract-test-results.xml
+
+integration-tests:
+  stage: test
+  needs: [lint]
+  script:
+    - cd apps/web && npx vitest run tests/integration
+  artifacts:
+    when: always
+    reports:
+      junit: apps/web/integration-test-results.xml
 
 build:
   stage: build
-  needs: [test]
+  needs: [unit-tests, contract-tests, integration-tests]
   script:
     - cd apps/web && npm run build
   artifacts:
