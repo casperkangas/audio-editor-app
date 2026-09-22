@@ -35,7 +35,7 @@ unit-tests:
   stage: test
   needs: [lint]
   script:
-    - cd apps/web && npx vitest run tests/unit
+    - cd apps/web && npx vitest run tests/unit --reporter=default --reporter=junit --outputFile=unit-test-results.xml
   artifacts:
     when: always
     reports:
@@ -45,7 +45,7 @@ contract-tests:
   stage: test
   needs: [lint]
   script:
-    - cd apps/web && npx vitest run tests/contract
+    - cd apps/web && npx vitest run tests/contract --reporter=default --reporter=junit --outputFile=contract-test-results.xml
   artifacts:
     when: always
     reports:

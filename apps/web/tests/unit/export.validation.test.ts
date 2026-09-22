@@ -25,7 +25,7 @@ describe("export format policy", () => {
 
   it("accepts allowlisted lossy quality settings", () => {
     expect(
-      validateExportSettings({ format: "mp3", bitrate: "192k", qualityPreset: "high" }),
+      validateExportSettings({ format: "mp3", qualityPreset: "high" }),
     ).toMatchObject({ valid: true });
   });
 

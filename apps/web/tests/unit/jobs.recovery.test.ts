@@ -32,18 +32,18 @@ class FakeRedisClient {
 
   multi() {
     const operations: Array<() => Promise<unknown>> = [];
-    return {
+    const transaction = {
       set: (
         key: string,
         value: string,
         options?: { NX?: boolean; EXAT?: number },
       ) => {
         operations.push(() => this.set(key, value, options));
-        return this;
+        return transaction;
       },
       del: (key: string) => {
         operations.push(() => this.del(key));
-        return this;
+        return transaction;
       },
       exec: async () => {
         const results: unknown[] = [];
@@ -51,6 +51,7 @@ class FakeRedisClient {
         return results;
       },
     };
+    return transaction;
   }
 
   async *scanIterator(options: { MATCH: string }) {
