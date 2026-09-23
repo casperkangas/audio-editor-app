@@ -5,6 +5,10 @@
 # Test Engineer triggers CI before merging to main branch.
 default:
   image: node:latest
+  before_script:
+    - export NVM_DIR="$HOME/.nvm"
+    - source "$NVM_DIR/nvm.sh"
+    - nvm use
 
 stages:
   - install
