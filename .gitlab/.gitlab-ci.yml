@@ -6,8 +6,8 @@
 default:
   image: node:latest
   before_script:
-    #- export NVM_DIR="$HOME/.nvm"
-    #- source "$NVM_DIR/nvm.sh"
+    - export NVM_DIR="'$HOME'/.nvm"
+    - source "'$NVM_DIR'/nvm.sh"
     - nvm use
 
 stages:
