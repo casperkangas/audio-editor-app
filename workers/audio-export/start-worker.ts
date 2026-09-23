@@ -15,9 +15,20 @@ try {
 } catch (err) {
   console.warn(
     `Could not load env file at ${envPath}. Assuming environment variables are already set.`,
-    err,
   );
 }
+
+// Start a dummy HTTP server so Render.com's "Web Service" free tier health checks pass
+import http from "node:http";
+const port = process.env.PORT || 10000;
+http
+  .createServer((req, res) => {
+    res.writeHead(200);
+    res.end("Worker is running!");
+  })
+  .listen(port, () => {
+    console.log(`Health check HTTP server listening on port ${port}`);
+  });
 
 const QUEUE_KEY = "audio:export-queue";
 
