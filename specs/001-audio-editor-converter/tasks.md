@@ -97,7 +97,7 @@ description: "Actionable tasks for the browser audio editor, asynchronous export
 
 ### Tomas Integration for User Story 2
 
-- [ ] T034 [US2] Wire existing export controls, queued/running/succeeded/failed states, polling, duplicate-submit protection, and download handling in `apps/web/src/components/export/ExportPanel.tsx`.
+- [x] T034 [US2] Wire existing export controls, queued/running/succeeded/failed states, polling, duplicate-submit protection, and download handling in `apps/web/src/components/export/ExportPanel.tsx`.
 
 **Checkpoint**: User Story 2 is independently testable when a valid browser edit snapshot produces one authorized queued job and one verified downloadable result.
 
@@ -113,7 +113,7 @@ description: "Actionable tasks for the browser audio editor, asynchronous export
 - [ ] T038 [US3] Add shared format-policy versioning to detect API/worker drift in `apps/web/api/_lib/export.validation.ts`.
 - [x] T039 [US3] Implement WAV, MP3, FLAC, OGG, and AAC encoder mappings in `workers/audio-export/ffmpeg.ts`.
 - [x] T040 [US3] Verify output container, codec, duration, extension, and private storage before success in `workers/audio-export/worker.ts`.
-- [ ] T041 [P] [US3] Wire format and quality controls and conversion progress/retry states in `apps/web/src/components/export/ExportPanel.tsx`.
+- [x] T041 [P] [US3] Wire format and quality controls and conversion progress/retry states in `apps/web/src/components/export/ExportPanel.tsx`.
 - [ ] T042 [P] [US3] Add FFmpeg fixture smoke tests for each supported format and typed edit operation in `workers/audio-export/ffmpeg.fixture.test.ts`.
 
 **Checkpoint**: User Story 3 is independently testable when all supported conversions obey the shared policy and produce verified private outputs.

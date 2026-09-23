@@ -2,6 +2,7 @@
 import { Analytics } from "@vercel/analytics/react";
 import { useEditor } from "./lib/useEditor";
 import type { SelectionRegion } from "./lib/types";
+import ExportPanel from "./components/export/ExportPanel";
 import "./App.css";
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -43,15 +44,10 @@ function App() {
     setActiveHeaderPopover(null);
   }, []);
 
-  const toggleHeaderPopover = useCallback(
-    (popover: "help" | "account") => {
-      headerTrigger.current = popover;
-      setActiveHeaderPopover((current) =>
-        current === popover ? null : popover,
-      );
-    },
-    [],
-  );
+  const toggleHeaderPopover = useCallback((popover: "help" | "account") => {
+    headerTrigger.current = popover;
+    setActiveHeaderPopover((current) => (current === popover ? null : popover));
+  }, []);
 
   useEffect(() => {
     if (!activeHeaderPopover) return;
@@ -197,7 +193,9 @@ function App() {
               className="header-popover"
               role="dialog"
               aria-label={
-                activeHeaderPopover === "help" ? "Editor help" : "Session account"
+                activeHeaderPopover === "help"
+                  ? "Editor help"
+                  : "Session account"
               }
               tabIndex={-1}
             >
@@ -511,51 +509,15 @@ function App() {
 
         {/* Export panel */}
         {exportOpen && (
-          <div className="export-panel">
-            <div>
-              <p className="eyebrow">Final step</p>
-              <h2>Export your audio</h2>
-              <p className="panel-copy">
-                Your edits will be rendered once, keeping the original file
-                intact.
-              </p>
-            </div>
-            <label>
-              Format
-              <select defaultValue="MP3">
-                <option>MP3</option>
-                <option>WAV</option>
-                <option>FLAC</option>
-                <option>OGG</option>
-              </select>
-            </label>
-            <label>
-              Quality
-              <select defaultValue="High · 256 kbps">
-                <option>High · 256 kbps</option>
-                <option>Standard · 192 kbps</option>
-                <option>Compact · 128 kbps</option>
-              </select>
-            </label>
-            <div className="panel-actions">
-              <button
-                className="text-button"
-                onClick={() => setExportOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="primary-button"
-                onClick={() => {
-                  setExportOpen(false);
-                  // TODO: wire to server export job when backend is ready
-                  console.info("[export] queued");
-                }}
-              >
-                Start export <span>→</span>
-              </button>
-            </div>
-          </div>
+          <ExportPanel
+            duration={editor.duration}
+            disabled={editor.loading}
+            projectId="browser-session"
+            sourceBlobKey={editor.fileName}
+            sourceRevision={editor.sourceRevision}
+            operations={editor.operations}
+            onClose={() => setExportOpen(false)}
+          />
         )}
       </section>
 
