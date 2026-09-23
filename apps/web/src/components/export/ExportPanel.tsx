@@ -5,6 +5,7 @@ interface ExportPanelProps {
   disabled?: boolean;
   duration: number;
   projectId: string;
+  sessionId: string;
   sourceBlobKey: string;
   sourceRevision: number;
   operations: readonly EditOperation[];
@@ -33,15 +34,6 @@ interface JobStatusResponse {
   error?: string | null;
 }
 
-function getSessionId(): string {
-  const key = "sonicraft-session-id";
-  const existing = sessionStorage.getItem(key);
-  if (existing) return existing;
-  const created = globalThis.crypto?.randomUUID?.() ?? `session_${Date.now()}`;
-  sessionStorage.setItem(key, created);
-  return created;
-}
-
 async function readResponse<T>(response: Response): Promise<T> {
   const payload = (await response.json()) as T & { error?: string };
   if (!response.ok) {
@@ -56,6 +48,7 @@ export default function ExportPanel({
   disabled = false,
   duration,
   projectId,
+  sessionId,
   sourceBlobKey,
   sourceRevision,
   operations,
@@ -83,7 +76,7 @@ export default function ExportPanel({
           const response = await fetch(
             `/api/jobs/${encodeURIComponent(jobId)}`,
             {
-              headers: { "x-session-id": getSessionId() },
+              headers: { "x-session-id": sessionId },
             },
           );
           const job = await readResponse<JobStatusResponse>(response);
@@ -119,7 +112,7 @@ export default function ExportPanel({
     return () => {
       cancelled = true;
     };
-  }, [jobId]);
+  }, [jobId, sessionId]);
 
   const handleExport = async () => {
     if (!ready || jobId) return;
@@ -134,7 +127,7 @@ export default function ExportPanel({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-session-id": getSessionId(),
+          "x-session-id": sessionId,
         },
         body: JSON.stringify({
           projectId,

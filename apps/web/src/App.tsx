@@ -1,5 +1,6 @@
 ﻿import { useRef, useCallback, useEffect, useState } from "react";
 import { Analytics } from "@vercel/analytics/react";
+import { upload } from "@vercel/blob/client";
 import { useEditor } from "./lib/useEditor";
 import type { SelectionRegion } from "./lib/types";
 import ExportPanel from "./components/export/ExportPanel";
@@ -25,6 +26,22 @@ function formatTime(seconds: number): string {
 
 const BAR_COUNT = 90;
 
+interface UploadSession {
+  projectId: string;
+  sessionId: string;
+  blobKey: string;
+}
+
+function createSessionId(): string {
+  const key = "sonicraft-session-id";
+  const existing = sessionStorage.getItem(key);
+  if (existing) return existing;
+  const sessionId =
+    globalThis.crypto?.randomUUID?.() ?? `session_${Date.now()}`;
+  sessionStorage.setItem(key, sessionId);
+  return sessionId;
+}
+
 // ── App ───────────────────────────────────────────────────────────────────
 
 function App() {
@@ -38,6 +55,12 @@ function App() {
   const [activeHeaderPopover, setActiveHeaderPopover] = useState<
     "help" | "account" | null
   >(null);
+  const [uploadSession, setUploadSession] = useState<UploadSession | null>(
+    null,
+  );
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [sessionId] = useState(createSessionId);
   const dragStart = useRef<number | null>(null);
 
   const closeHeaderPopover = useCallback(() => {
@@ -80,9 +103,46 @@ function App() {
     headerTrigger.current = null;
   }, [activeHeaderPopover]);
 
-  const handleFile = (file?: File) => {
+  const handleFile = async (file?: File) => {
     if (!file) return;
-    void editor.loadFile(file);
+    setUploadError(null);
+    setUploadSession(null);
+    setExportOpen(false);
+    setUploading(true);
+
+    const projectId =
+      globalThis.crypto?.randomUUID?.() ?? `project_${Date.now()}`;
+
+    try {
+      const blob = await upload(file.name, file, {
+        access: "private",
+        handleUploadUrl: "/api/upload",
+        contentType: file.type,
+        clientPayload: JSON.stringify({ projectId, sessionId }),
+      });
+
+      await editor.loadFile(file);
+      setUploadSession({
+        projectId,
+        sessionId,
+        blobKey: blob.pathname,
+      });
+    } catch (error) {
+      setUploadError(
+        error instanceof Error
+          ? error.message
+          : "Could not upload the selected audio file.",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleReplaceFile = () => {
+    editor.clearFile();
+    setUploadSession(null);
+    setUploadError(null);
+    setExportOpen(false);
   };
 
   // ── Waveform interaction ──────────────────────────────────────────────
@@ -245,18 +305,21 @@ function App() {
         </div>
 
         {/* Error banner */}
-        {editor.error && (
+        {(editor.error || uploadError) && (
           <div
             className="notice visible"
             role="alert"
             style={{ marginBottom: "16px", color: "#c0392b" }}
           >
             <span>⚠️</span>
-            {editor.error}
+            {uploadError ?? editor.error}
             <button
               className="text-button"
               style={{ marginLeft: "12px" }}
-              onClick={editor.dismissError}
+              onClick={() => {
+                setUploadError(null);
+                editor.dismissError();
+              }}
             >
               Dismiss
             </button>
@@ -264,7 +327,7 @@ function App() {
         )}
 
         {/* Upload card */}
-        {!hasFile && !editor.loading && (
+        {!hasFile && !editor.loading && !uploading && (
           <div
             className="upload-card"
             onClick={() => fileInput.current?.click()}
@@ -307,10 +370,10 @@ function App() {
         )}
 
         {/* Loading */}
-        {editor.loading && (
+        {(uploading || editor.loading) && (
           <div className="upload-card" style={{ minHeight: 180, gap: "14px" }}>
             <div className="upload-glyph">↻</div>
-            <p>Decoding audio...</p>
+            <p>{uploading ? "Uploading audio..." : "Decoding audio..."}</p>
           </div>
         )}
 
@@ -326,7 +389,7 @@ function App() {
                   <span>{formatTime(editor.duration)} · decoded</span>
                 </div>
               </div>
-              <button className="text-button" onClick={editor.clearFile}>
+              <button className="text-button" onClick={handleReplaceFile}>
                 Replace file
               </button>
             </div>
@@ -500,7 +563,7 @@ function App() {
           <button
             className="export-button"
             onClick={() => setExportOpen(true)}
-            disabled={!hasFile}
+            disabled={!hasFile || !uploadSession || uploading}
             aria-label="Export audio"
           >
             Export audio <span>↓</span>
@@ -508,12 +571,13 @@ function App() {
         </div>
 
         {/* Export panel */}
-        {exportOpen && (
+        {exportOpen && uploadSession && (
           <ExportPanel
             duration={editor.duration}
-            disabled={editor.loading}
-            projectId="browser-session"
-            sourceBlobKey={editor.fileName}
+            disabled={editor.loading || uploading}
+            projectId={uploadSession.projectId}
+            sessionId={uploadSession.sessionId}
+            sourceBlobKey={uploadSession.blobKey}
             sourceRevision={editor.sourceRevision}
             operations={editor.operations}
             onClose={() => setExportOpen(false)}
