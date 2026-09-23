@@ -95,6 +95,7 @@ describe("GET /api/jobs/[jobId] conversion metadata", () => {
           kind: "export",
         }),
       }),
+      "edited-audio.mp3"
     );
   });
 
