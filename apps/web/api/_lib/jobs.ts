@@ -414,12 +414,11 @@ export class DuplicateActiveJobError extends Error {
 }
 
 export function createRedisJobStore(
-  url = process.env.JOB_STORE_URL,
+  url = process.env.REDIS_URL,
 ): RedisJobStore {
-  if (!url) throw new Error("JOB_STORE_URL is required");
+  if (!url) throw new Error("REDIS_URL is required");
 
   const client = createClient({ url });
   void client.connect();
   return new RedisJobStore(client as RedisClient);
 }
-
