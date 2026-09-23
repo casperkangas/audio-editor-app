@@ -95,7 +95,6 @@ export async function createPrivateDownloadUrl(
   context: BlobAccessContext,
   token?: string,
   ttlSeconds = DEFAULT_DOWNLOAD_TTL_SECONDS,
-  downloadFilename?: string,
 ): Promise<string> {
   assertOwnedReference(context);
 
