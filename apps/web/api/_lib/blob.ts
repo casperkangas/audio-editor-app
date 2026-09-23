@@ -95,6 +95,7 @@ export async function createPrivateDownloadUrl(
   context: BlobAccessContext,
   token?: string,
   ttlSeconds = DEFAULT_DOWNLOAD_TTL_SECONDS,
+  downloadFilename?: string,
 ): Promise<string> {
   assertOwnedReference(context);
 
@@ -120,7 +121,10 @@ export async function createPrivateDownloadUrl(
       validUntil: Math.min(validUntil, signedToken.validUntil),
     });
 
-    return result.presignedUrl + "&download=1";
+    const downloadQuery = downloadFilename
+      ? encodeURIComponent(downloadFilename)
+      : "1";
+    return result.presignedUrl + "&download=" + downloadQuery;
   } catch {
     throw new BlobAccessError();
   }
