@@ -18,6 +18,7 @@ cache:
   key:
     files:
       - apps/web/package-lock.json
+    prefix: node20
   paths:
     - apps/web/node_modules/
 
