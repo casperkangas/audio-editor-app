@@ -1,7 +1,7 @@
-FROM node:20-bullseye-slim
+FROM node:20-alpine
 
-# Install ffmpeg
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+# Install ffmpeg using Alpine's package manager
+RUN apk add --no-cache ffmpeg
 
 WORKDIR /app
 

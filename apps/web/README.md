@@ -1,145 +1,59 @@
-# React + TypeScript + Vite
+# Audio Editor App Architecture & Setup
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This document outlines the finalized cloud architecture, how to run it locally, and how the external background worker functions.
 
-## Audio uploads
+## 🚀 Live Cloud Architecture
 
-The Vercel API route at `/api/upload` creates restricted client-upload tokens
-for Vercel Blob. The browser should use `upload()` from `@vercel/blob/client`
-with `handleUploadUrl: "/api/upload"`; the audio bytes go directly to Blob
-after the route validates the filename, content type, and size.
+The entire audio editor relies on a heavily decoupled architecture:
 
-Configure the server-only `BLOB_READ_WRITE_TOKEN` in Vercel (or through the
-Vercel CLI for local API testing). Never prefix this variable with `VITE_` or
-read it from frontend code. The optional `AUDIO_UPLOAD_MAX_SIZE_BYTES`
-environment variable controls the limit and defaults to 50 MiB.
+1. **Frontend**: Vite + React, hosted on Vercel.
+2. **Web API (`/api/*`)**: Vercel Serverless Functions.
+3. **Database & Queue**: Upstash Redis (Serverless).
+4. **File Storage**: Vercel Blob (Private files).
+5. **Worker**: A continuous Node.js background process running on Render.com with FFmpeg installed.
 
-## Audio export infrastructure variables
+### How an Export Works (End-to-End)
 
-The export API and background worker use the following server-only variables. Keep
-all of them out of `apps/web/src/`, browser bundles, and any variable prefixed with
-`VITE_`.
+1. **Upload**: User drops a file. Browser uses `@vercel/blob/client` to bypass Vercel server limits and upload directly to Vercel Blob (`audio/source/...`). `upload.ts` instantly logs a `ProjectSession` to Redis with the source blob key and a 7200-second safe duration limit.
+2. **Request**: Browser makes a POST to `/api/exports` containing edit instructions.
+3. **Queue**: `exports.ts` validates the session, builds a job, inserts it into Redis, and pushes the Job ID to the Redis queue (`audio:export-queue`).
+4. **Worker**: The Render background worker instantly detects the queue message, claims a lease on the job, downloads the raw audio from Vercel Blob, probes its _real_ duration using FFprobe, applies the edits with FFmpeg, and uploads the final output to Vercel Blob.
+5. **Complete**: The worker marks the job as `succeeded` in Redis and sets `outputBlobKey`.
+6. **Download**: The browser (which has been polling `/api/jobs/[jobId]`) sees the success. The API intelligently extracts the original filename, swaps the extension, and generates a presigned URL with `&download=YourOriginalSong.wav` to forcefully trigger a browser download instead of playback.
 
-| Variable                         | Used by                      | Purpose                                                               |
-| -------------------------------- | ---------------------------- | --------------------------------------------------------------------- |
-| `BLOB_READ_WRITE_TOKEN`          | Vercel API and export worker | Read/write private source and generated audio objects in Vercel Blob. |
-| `AUDIO_UPLOAD_MAX_SIZE_BYTES`    | Upload API                   | Maximum upload size; defaults to 50 MiB when unset or invalid.        |
-| `JOB_STORE_URL`                  | API and export worker        | Redis connection URL for durable export-job metadata and status.      |
-| `JOB_STORE_TOKEN`                | API and export worker        | Optional Redis provider credential when the URL does not contain it.  |
-| `EXPORT_QUEUE_URL`               | Export API and worker        | Redis connection URL for job-ID queue dispatch and consumption.       |
-| `EXPORT_QUEUE_TOKEN`             | Export API and worker        | Optional Redis provider credential when the URL does not contain it.  |
-| `AUDIO_SOURCE_RETENTION_SECONDS` | Cleanup process              | Retention window for private source objects.                          |
-| `AUDIO_OUTPUT_RETENTION_SECONDS` | Cleanup process              | Retention window for generated output objects and metadata.           |
+## 🛠 Running Locally
 
-Redis is the selected Phase 1 provider for both the job store and export queue. The
-provider-neutral adapters in `apps/web/api/_lib/jobs.ts` and
-`apps/web/api/_lib/queue.ts` must use atomic Redis operations for claims and
-compare-and-set updates. `JOB_STORE_URL` and `EXPORT_QUEUE_URL` may point to the
-same Redis instance, but their logical namespaces must remain separate. Do not
-commit their values or add them to client-visible configuration.
+Because the database and worker are in the cloud, local development is incredibly magical.
 
-### Vercel and Vercel Blob setup required outside the repository
+**Yes, you can just run `npx vercel dev` locally and the export WILL work!**
+When your local server pushes a job to your live Upstash Redis database, your 24/7 Render cloud worker will instantly see it, process it, and hand it back to your local server!
 
-Before testing the API against deployed infrastructure, Casper must complete these
-dashboard or CLI actions:
+**To test the frontend and API:**
 
-1. Create or select a Vercel Blob store and copy its read/write token into the
-   server-only `BLOB_READ_WRITE_TOKEN` variable for the required environments.
-2. Provision a Redis instance with persistence enabled and configure its connection
-   URL in both `JOB_STORE_URL` and `EXPORT_QUEUE_URL`; provide any separate provider
-   credential through the matching `*_TOKEN` variables.
-3. Configure the retention variables and upload limit per environment, then redeploy
-   so changed environment variables are available to API functions.
-4. Configure the external audio-export worker with the same Blob token, job-store
-   credentials, queue credentials, and access to FFmpeg/ffprobe.
-
-The repository does not create Blob stores, provision queue/job-store providers, or
-run FFmpeg. Those are deployment and infrastructure operations outside this codebase.
-
-Use `npx vercel dev` when testing the frontend and `/api/upload` together.
-
-# NB: Deployment to Vercel
-
-When changes are made, remember to deploy to Vercel in the following way:
-
-```
+```bash
 cd apps/web
-npm run build
-npx vercel --prod
+npx vercel dev
 ```
 
-# NB: Testing during development
+**To test the worker locally on your Mac instead of using Render:**
+_(Requires `brew install ffmpeg`)_
 
-Use `npm run dev` in `apps/web` for frontend-only work. Use `npx vercel dev` in `apps/web` when testing frontend + API + Blob together.
-
-`NODE_PATH=apps/web/node_modules npx tsx workers/audio-export/start-worker.ts`
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+# From the root directory:
+NODE_PATH=apps/web/node_modules npx tsx workers/audio-export/start-worker.ts
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+## 🌐 Render Deployment Notes
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
+The worker is deployed as a **Web Service** on Render to utilize the Free tier (which requires an HTTP port).
 
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
-```
+- `start-worker.ts` includes a dummy HTTP server on `process.env.PORT` to satisfy Render's health checks.
+- Render free tier instances "go to sleep" after 15 minutes of inactivity. To bypass this, we use a free **UptimeRobot HTTP(s) Monitor** to ping the `https://audio-editor-app.onrender.com` URL every 10 minutes.
+- The `Dockerfile` uses `node:20-alpine` to safely install `ffmpeg` and avoid Ubuntu `apt-get` exit code 100 timeouts.
+
+## 🐛 Key Architectural Fixes Made
+
+- **Redis Variable Normalization**: Consolidated `JOB_STORE_URL` and `EXPORT_QUEUE_URL` into a single, unified `REDIS_URL`.
+- **Redis Connection Stability**: Added `.on("error")` event listeners to all Redis clients so Upstash's 60-second idle connection drops no longer crash the API or worker.
+- **Webhook Bypass**: Local `npx vercel dev` testing previously failed because Vercel Blob couldn't send webhooks to `localhost`. Moved Redis session creation to `onBeforeGenerateToken` so it works flawlessly on localhost.
+- **Source Revision Sync**: `App.tsx` now passes the frontend `editor.sourceRevision + 1` to the API during upload, preventing the backend from instantly rejecting legitimate edits due to a stale revision count.
