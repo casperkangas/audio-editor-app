@@ -16,7 +16,6 @@ stages:
 lint-and-install:
   when: manual
   stage: lint
-  needs: []
   script:
     - cd apps/web && npm ci && npm run lint
 
