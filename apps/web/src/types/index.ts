@@ -146,5 +146,9 @@ export const SUPPORTED_MIME_TYPES = [
   'audio/mp4',
 ] as const;
 
+// 50 MiB keeps browser memory, upload bandwidth, storage, and abuse risk bounded
+// while covering ordinary audio files. Two hours is a generous single-file duration
+// for lectures and podcasts, while still preventing unbounded browser decoding and
+// worker processing. This is an audio-duration limit, not a processing timeout.
 export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MiB
 export const MAX_DURATION_SECONDS = 2 * 60 * 60;     // 2 hours
