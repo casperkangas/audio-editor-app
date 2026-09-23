@@ -21,7 +21,7 @@ lint-and-install:
 
 unit-tests:
   stage: test
-  needs: [lint]
+  needs: [lint-and-install]
   script:
     - cd apps/web && npm ci && npx vitest run tests/unit --reporter=default --reporter=junit --outputFile=unit-test-results.xml
   artifacts:
@@ -31,7 +31,7 @@ unit-tests:
 
 contract-tests:
   stage: test
-  needs: [lint]
+  needs: [lint-and-install]
   script:
     - cd apps/web && npm ci && npx vitest run tests/contract --reporter=default --reporter=junit --outputFile=contract-test-results.xml
   artifacts:
