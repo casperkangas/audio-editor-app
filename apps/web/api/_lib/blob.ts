@@ -121,10 +121,7 @@ export async function createPrivateDownloadUrl(
       validUntil: Math.min(validUntil, signedToken.validUntil),
     });
 
-    const downloadQuery = downloadFilename
-      ? encodeURIComponent(downloadFilename)
-      : "1";
-    return result.presignedUrl + "&download=" + downloadQuery;
+    return result.presignedUrl + "&download=1";
   } catch {
     throw new BlobAccessError();
   }
