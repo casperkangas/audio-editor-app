@@ -70,7 +70,7 @@ export default async function handler(
           }),
         };
       },
-      onUploadCompleted: async ({ blob, tokenPayload }) => {
+      onUploadCompleted: async ({ blob }) => {
         if (!isAllowedAudioContentType(blob.contentType)) {
           throw new Error("Unsupported audio content type");
         }
