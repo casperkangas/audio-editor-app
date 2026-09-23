@@ -1,7 +1,9 @@
 ﻿import { useRef, useCallback, useEffect, useState } from "react";
 import { Analytics } from "@vercel/analytics/react";
+import { upload } from "@vercel/blob/client";
 import { useEditor } from "./lib/useEditor";
 import type { SelectionRegion } from "./lib/types";
+import ExportPanel from "./components/export/ExportPanel";
 import "./App.css";
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -24,6 +26,22 @@ function formatTime(seconds: number): string {
 
 const BAR_COUNT = 90;
 
+interface UploadSession {
+  projectId: string;
+  sessionId: string;
+  blobKey: string;
+}
+
+function createSessionId(): string {
+  const key = "sonicraft-session-id";
+  const existing = sessionStorage.getItem(key);
+  if (existing) return existing;
+  const sessionId =
+    globalThis.crypto?.randomUUID?.() ?? `session_${Date.now()}`;
+  sessionStorage.setItem(key, sessionId);
+  return sessionId;
+}
+
 // ── App ───────────────────────────────────────────────────────────────────
 
 function App() {
@@ -37,21 +55,22 @@ function App() {
   const [activeHeaderPopover, setActiveHeaderPopover] = useState<
     "help" | "account" | null
   >(null);
+  const [uploadSession, setUploadSession] = useState<UploadSession | null>(
+    null,
+  );
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [sessionId] = useState(createSessionId);
   const dragStart = useRef<number | null>(null);
 
   const closeHeaderPopover = useCallback(() => {
     setActiveHeaderPopover(null);
   }, []);
 
-  const toggleHeaderPopover = useCallback(
-    (popover: "help" | "account") => {
-      headerTrigger.current = popover;
-      setActiveHeaderPopover((current) =>
-        current === popover ? null : popover,
-      );
-    },
-    [],
-  );
+  const toggleHeaderPopover = useCallback((popover: "help" | "account") => {
+    headerTrigger.current = popover;
+    setActiveHeaderPopover((current) => (current === popover ? null : popover));
+  }, []);
 
   useEffect(() => {
     if (!activeHeaderPopover) return;
@@ -84,9 +103,46 @@ function App() {
     headerTrigger.current = null;
   }, [activeHeaderPopover]);
 
-  const handleFile = (file?: File) => {
+  const handleFile = async (file?: File) => {
     if (!file) return;
-    void editor.loadFile(file);
+    setUploadError(null);
+    setUploadSession(null);
+    setExportOpen(false);
+    setUploading(true);
+
+    const projectId =
+      globalThis.crypto?.randomUUID?.() ?? `project_${Date.now()}`;
+
+    try {
+      const blob = await upload(file.name, file, {
+        access: "private",
+        handleUploadUrl: "/api/upload",
+        contentType: file.type,
+        clientPayload: JSON.stringify({ projectId, sessionId }),
+      });
+
+      await editor.loadFile(file);
+      setUploadSession({
+        projectId,
+        sessionId,
+        blobKey: blob.pathname,
+      });
+    } catch (error) {
+      setUploadError(
+        error instanceof Error
+          ? error.message
+          : "Could not upload the selected audio file.",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleReplaceFile = () => {
+    editor.clearFile();
+    setUploadSession(null);
+    setUploadError(null);
+    setExportOpen(false);
   };
 
   // ── Waveform interaction ──────────────────────────────────────────────
@@ -197,7 +253,9 @@ function App() {
               className="header-popover"
               role="dialog"
               aria-label={
-                activeHeaderPopover === "help" ? "Editor help" : "Session account"
+                activeHeaderPopover === "help"
+                  ? "Editor help"
+                  : "Session account"
               }
               tabIndex={-1}
             >
@@ -247,18 +305,21 @@ function App() {
         </div>
 
         {/* Error banner */}
-        {editor.error && (
+        {(editor.error || uploadError) && (
           <div
             className="notice visible"
             role="alert"
             style={{ marginBottom: "16px", color: "#c0392b" }}
           >
             <span>⚠️</span>
-            {editor.error}
+            {uploadError ?? editor.error}
             <button
               className="text-button"
               style={{ marginLeft: "12px" }}
-              onClick={editor.dismissError}
+              onClick={() => {
+                setUploadError(null);
+                editor.dismissError();
+              }}
             >
               Dismiss
             </button>
@@ -266,7 +327,7 @@ function App() {
         )}
 
         {/* Upload card */}
-        {!hasFile && !editor.loading && (
+        {!hasFile && !editor.loading && !uploading && (
           <div
             className="upload-card"
             onClick={() => fileInput.current?.click()}
@@ -309,10 +370,10 @@ function App() {
         )}
 
         {/* Loading */}
-        {editor.loading && (
+        {(uploading || editor.loading) && (
           <div className="upload-card" style={{ minHeight: 180, gap: "14px" }}>
             <div className="upload-glyph">↻</div>
-            <p>Decoding audio...</p>
+            <p>{uploading ? "Uploading audio..." : "Decoding audio..."}</p>
           </div>
         )}
 
@@ -328,7 +389,7 @@ function App() {
                   <span>{formatTime(editor.duration)} · decoded</span>
                 </div>
               </div>
-              <button className="text-button" onClick={editor.clearFile}>
+              <button className="text-button" onClick={handleReplaceFile}>
                 Replace file
               </button>
             </div>
@@ -502,7 +563,7 @@ function App() {
           <button
             className="export-button"
             onClick={() => setExportOpen(true)}
-            disabled={!hasFile}
+            disabled={!hasFile || !uploadSession || uploading}
             aria-label="Export audio"
           >
             Export audio <span>↓</span>
@@ -510,52 +571,17 @@ function App() {
         </div>
 
         {/* Export panel */}
-        {exportOpen && (
-          <div className="export-panel">
-            <div>
-              <p className="eyebrow">Final step</p>
-              <h2>Export your audio</h2>
-              <p className="panel-copy">
-                Your edits will be rendered once, keeping the original file
-                intact.
-              </p>
-            </div>
-            <label>
-              Format
-              <select defaultValue="MP3">
-                <option>MP3</option>
-                <option>WAV</option>
-                <option>FLAC</option>
-                <option>OGG</option>
-              </select>
-            </label>
-            <label>
-              Quality
-              <select defaultValue="High · 256 kbps">
-                <option>High · 256 kbps</option>
-                <option>Standard · 192 kbps</option>
-                <option>Compact · 128 kbps</option>
-              </select>
-            </label>
-            <div className="panel-actions">
-              <button
-                className="text-button"
-                onClick={() => setExportOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="primary-button"
-                onClick={() => {
-                  setExportOpen(false);
-                  // TODO: wire to server export job when backend is ready
-                  console.info("[export] queued");
-                }}
-              >
-                Start export <span>→</span>
-              </button>
-            </div>
-          </div>
+        {exportOpen && uploadSession && (
+          <ExportPanel
+            duration={editor.duration}
+            disabled={editor.loading || uploading}
+            projectId={uploadSession.projectId}
+            sessionId={uploadSession.sessionId}
+            sourceBlobKey={uploadSession.blobKey}
+            sourceRevision={editor.sourceRevision}
+            operations={editor.operations}
+            onClose={() => setExportOpen(false)}
+          />
         )}
       </section>
 
