@@ -6,9 +6,7 @@
 default:
   image: node:latest
   before_script:
-    - export NVM_DIR="/home/system/.nvm" # Use when executor = 'shell'
-    - source "$NVM_DIR/nvm.sh"
-    - nvm use
+    - export PATH="/home/system/.nvm/versions/node/v20.20.2/bin:$PATH"
 
 stages:
   - install
