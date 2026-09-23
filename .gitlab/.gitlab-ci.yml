@@ -6,7 +6,7 @@
 default:
   image: node:latest
   before_script:
-    - export NVM_DIR="'/home/system/.nvm" # Use when executor = 'shell'
+    - export NVM_DIR="/home/system/.nvm" # Use when executor = 'shell'
     - source "$NVM_DIR/nvm.sh"
     - nvm use
 
