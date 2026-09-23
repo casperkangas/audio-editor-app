@@ -1,4 +1,7 @@
+import { isSafeBlobKey } from "./blob.js";
+
 export const EXPORT_FORMATS = ["wav", "mp3", "flac", "ogg", "aac"] as const;
+export const FORMAT_POLICY_VERSION = 1;
 
 export const EXPORT_FORMAT_POLICY_VERSION = "1" as const;
 
@@ -134,6 +137,7 @@ export interface ExportSettings {
 export interface ValidatedExportSettings extends ExportSettings {
   readonly extension: string;
   readonly contentType: string;
+  readonly policyVersion: number;
 }
 
 export interface ExportRequest {
@@ -393,6 +397,7 @@ export function validateExportSettings(
       ...settings,
       extension: policy.extension,
       contentType: policy.contentType,
+      policyVersion: FORMAT_POLICY_VERSION,
     },
   };
 }
@@ -415,6 +420,7 @@ export function parseExportRequest(
     !Number.isSafeInteger(input.sourceRevision) ||
     input.sourceRevision < 0 ||
     !isNonEmptyString(input.sourceBlobKey) ||
+    !isSafeBlobKey(input.sourceBlobKey, "source") ||
     !Array.isArray(operations) ||
     !operations.every(isOperationSnapshot) ||
     !isSettings(input.settings)

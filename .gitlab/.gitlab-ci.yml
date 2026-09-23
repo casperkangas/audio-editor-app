@@ -1,49 +1,49 @@
 # Gitlab CI file
 # Includes four stages: install, lint, test, build.
-# All are manual and before merging into main, run the tests for validation.
+# First job is manual by design, 
+# thus ensuring that the CI is not triggered automatically.
+# Test Engineer triggers CI before merging to main branch.
 default:
   image: node:latest
+  before_script:
+    - export PATH="/home/system/.nvm/versions/node/v20.20.2/bin:$PATH"
 
 stages:
-  - install
   - lint
   - test
   - build
 
-cache:
-  key:
-    files:
-      - apps/web/package-lock.json
-  paths:
-    - apps/web/node_modules/
-
-install:
-  stage: install
-  script:
-    - cd apps/web && npm ci
+lint-and-install:
   when: manual
-
-lint:
   stage: lint
-  needs: [install]
   script:
-    - cd apps/web && npm run lint
+    - cd apps/web && npm ci && npm run lint
 
-test:
+unit-tests:
   stage: test
-  needs: [lint]
+  needs: [lint-and-install]
   script:
-    - cd apps/web && npm run test
+    - cd apps/web && npm ci && npx vitest run tests/unit --reporter=default --reporter=junit --outputFile=unit-test-results.xml
   artifacts:
     when: always
     reports:
-      junit: apps/web/test-results.xml
+      junit: apps/web/unit-test-results.xml
+
+contract-tests:
+  stage: test
+  needs: [lint-and-install]
+  script:
+    - cd apps/web && npm ci && npx vitest run tests/contract --reporter=default --reporter=junit --outputFile=contract-test-results.xml
+  artifacts:
+    when: always
+    reports:
+      junit: apps/web/contract-test-results.xml
 
 build:
   stage: build
-  needs: [test]
+  needs: [unit-tests, contract-tests]
   script:
-    - cd apps/web && npm run build
+    - cd apps/web && npm ci && npm run build
   artifacts:
     paths:
       - apps/web/dist/
