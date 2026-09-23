@@ -23,15 +23,39 @@
 - **Alternative rejected**: Synchronous export inside a Vercel function conflicts with
   the constitution's runtime boundary and can fail at platform execution limits.
 
-### 3. Use a durable metadata store plus queue adapter
+### 3. Use Redis behind a durable job-store and queue adapter
 
-- **Decision**: Store job metadata and status in a durable managed key-value or SQL store,
-  behind `jobs.ts`; dispatch only the job ID through a queue adapter. The initial
-  deployment must select a provider that supports atomic updates, TTLs, and worker access.
+- **Decision**: Use Redis for project/session metadata and export-job state behind
+  `apps/web/api/_lib/jobs.ts`; dispatch only the job ID through the queue adapter in
+  `apps/web/api/_lib/queue.ts`. Redis must support atomic revisions, leases, TTLs, and
+  worker access.
 - **Rationale**: Browser polling must survive function restarts and worker retries. Keeping
   the provider behind an adapter avoids coupling route logic to a single vendor.
 - **Alternative rejected**: In-memory maps cannot provide reliable status across instances
   and restarts.
+
+### 8. Keep browser editing state as an ordered, replayable snapshot
+
+- **Decision**: Jonas's editor state keeps the original decoded source separate from the
+  current ordered operations, selection, playback state, and undo/redo history. Export
+  serializes the source revision and validated operations, never an `AudioBuffer` or
+  executable rendering instructions.
+- **Rationale**: Replaying the same operations produces the preview and final export from
+  one authoritative edit description while preserving the original source for undo, redo,
+  and alternate exports.
+- **Alternative rejected**: Re-encoding every edit would increase latency and make undo,
+  preview, and repeated export less reliable.
+
+### 9. Keep top-right Help and Account controls browser-only in the MVP
+
+- **Decision**: Help opens a dismissible accessible popover with the editor's real actions
+  and keyboard shortcuts. Account opens a session/privacy popover stating that the current
+  MVP requires no account and does not navigate or call an authentication service.
+- **Rationale**: The controls provide useful orientation and privacy feedback without
+  introducing authentication, profile storage, or deployment dependencies that are outside
+  the current audio-editing scope.
+- **Alternative rejected**: Adding account registration or profile persistence would add
+  scope and security responsibilities without supporting the primary editing/export path.
 
 ### 4. Send a serializable edit plan, not browser audio buffers
 
@@ -81,6 +105,9 @@
 - Generated outputs and temporary worker files receive a retention deadline. Cleanup is
   attempted after success or failure, and cleanup failure is recorded without changing a
   completed job back to failed.
+- The default source limit is 50 MiB and the default supported duration limit is 2 hours.
+- Common browser editor interactions target completion within 200 milliseconds, and the
+  representative concurrency validation target is 20 active sessions.
 - The worker reports coarse stages (`queued`, `validating`, `rendering`, `finalizing`,
   `succeeded`, `failed`) and a bounded integer progress value. It does not report raw FFmpeg
   output to the client.
@@ -97,3 +124,6 @@
   container/codec pair, and verify the generated file before success.
 - **Cost/resource exhaustion**: enforce upload size, duration, operation-count, and
   concurrent-job limits before dispatch.
+- **Browser responsiveness**: keep waveform rendering and operation replay local, bound
+  operation count, and verify playback, selection, trim, undo, and redo latency before
+  accepting the design.

@@ -106,7 +106,9 @@ describe("validateAudioFile — file size limits (FR-002, edge cases)", () => {
   it("includes the size limit in the error message", () => {
     const result = validateAudioFile(makeFile({ size: MAX_FILE_SIZE_BYTES + 1 }));
     expect(result.valid).toBe(false);
-    if (!result.valid) expect(result.reason).toMatch(/200/); // mentions 200 MB
+    if (!result.valid) {
+      expect(result.reason).toContain("smaller than 50 MB");
+    }
   });
 });
 

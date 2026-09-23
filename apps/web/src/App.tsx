@@ -1,4 +1,4 @@
-﻿import { useRef, useCallback, useState } from "react";
+﻿import { useRef, useCallback, useEffect, useState } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { useEditor } from "./lib/useEditor";
 import type { SelectionRegion } from "./lib/types";
@@ -29,8 +29,60 @@ const BAR_COUNT = 90;
 function App() {
   const editor = useEditor();
   const fileInput = useRef<HTMLInputElement>(null);
+  const helpButton = useRef<HTMLButtonElement>(null);
+  const accountButton = useRef<HTMLButtonElement>(null);
+  const headerPopover = useRef<HTMLDivElement>(null);
+  const headerTrigger = useRef<"help" | "account" | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [activeHeaderPopover, setActiveHeaderPopover] = useState<
+    "help" | "account" | null
+  >(null);
   const dragStart = useRef<number | null>(null);
+
+  const closeHeaderPopover = useCallback(() => {
+    setActiveHeaderPopover(null);
+  }, []);
+
+  const toggleHeaderPopover = useCallback(
+    (popover: "help" | "account") => {
+      headerTrigger.current = popover;
+      setActiveHeaderPopover((current) =>
+        current === popover ? null : popover,
+      );
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!activeHeaderPopover) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeHeaderPopover();
+      }
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!headerPopover.current?.contains(event.target as Node)) {
+        closeHeaderPopover();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+    headerPopover.current?.focus();
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [activeHeaderPopover, closeHeaderPopover]);
+
+  useEffect(() => {
+    if (activeHeaderPopover !== null) return;
+    if (headerTrigger.current === "account") accountButton.current?.focus();
+    if (headerTrigger.current === "help") helpButton.current?.focus();
+    headerTrigger.current = null;
+  }, [activeHeaderPopover]);
 
   const handleFile = (file?: File) => {
     if (!file) return;
@@ -118,12 +170,59 @@ function App() {
             <span className="status-dot" />
             {hasFile ? "Session active" : "Saved locally"}
           </span>
-          <button className="icon-button" aria-label="Help">
+          <button
+            ref={helpButton}
+            className="icon-button"
+            aria-label="Help"
+            aria-expanded={activeHeaderPopover === "help"}
+            aria-controls="header-popover"
+            onClick={() => toggleHeaderPopover("help")}
+          >
             ?
           </button>
-          <button className="avatar" aria-label="Account">
+          <button
+            ref={accountButton}
+            className="avatar"
+            aria-label="Account"
+            aria-expanded={activeHeaderPopover === "account"}
+            aria-controls="header-popover"
+            onClick={() => toggleHeaderPopover("account")}
+          >
             AC
           </button>
+          {activeHeaderPopover && (
+            <div
+              ref={headerPopover}
+              id="header-popover"
+              className="header-popover"
+              role="dialog"
+              aria-label={
+                activeHeaderPopover === "help" ? "Editor help" : "Session account"
+              }
+              tabIndex={-1}
+            >
+              {activeHeaderPopover === "help" ? (
+                <>
+                  <strong>Editor help</strong>
+                  <p>Space plays or pauses. Select a region to edit it.</p>
+                  <p>Ctrl/Cmd+Z undoes; Ctrl/Cmd+Y redoes.</p>
+                </>
+              ) : (
+                <>
+                  <strong>Session account</strong>
+                  <p>No account is required for this browser session.</p>
+                  <p>Your audio stays private to this session.</p>
+                </>
+              )}
+              <button
+                className="text-button"
+                type="button"
+                onClick={closeHeaderPopover}
+              >
+                Close
+              </button>
+            </div>
+          )}
         </div>
       </header>
 

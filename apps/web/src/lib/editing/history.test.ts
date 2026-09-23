@@ -176,6 +176,15 @@ describe('undo/redo round-trip', () => {
     const h   = pushOperation(undo(pushOperation(pushOperation(createHistory(), op1), op2)), op3);
     expect(canRedo(h)).toBe(false);
   });
+
+  it('preserves the source operation sequence through undo and redo', () => {
+    const op1 = makeOp('trim', 'op1');
+    const op2 = makeOp('fade-in', 'op2');
+    const initial = pushOperation(pushOperation(createHistory(), op1), op2);
+    const restored = redo(undo(initial));
+    expect(restored.present).toEqual([op1, op2]);
+    expect(initial.present).toEqual([op1, op2]);
+  });
 });
 
 // ─── resetHistory ─────────────────────────────────────────────────────────

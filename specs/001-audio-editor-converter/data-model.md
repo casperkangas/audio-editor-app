@@ -75,7 +75,7 @@ Fields:
 
 - id: operation identifier
 - projectId: owning project
-- type: trim, cut, split, fade-in, fade-out, volume, insert, delete, reorder
+- type: trim, cut, split, fade-in, fade-out, or volume
 - startTime: start offset in seconds
 - endTime: end offset in seconds
 - parameters: JSON object for operation-specific settings
@@ -87,11 +87,72 @@ Relationships:
 - One project contains many operations in chronological order
 - The operation history supports undo/redo traversal
 
+### BrowserEditState
+
+Represents the Jonas-owned in-memory state used to preview and export the current edit.
+
+Fields:
+
+- sourceRevision: integer identifying the loaded source snapshot
+- sourceDurationSeconds: immutable duration of the original source
+- operations: ordered immutable `EditOperation[]` describing the current result
+- selection: nullable start and end offsets bounded by the current timeline
+- currentTimeSeconds: current playback position bounded by the current duration
+- currentDurationSeconds: duration after replaying the current operations
+- history: past, present, and future operation snapshots for undo/redo
+- status: loading, ready, playing, paused, exporting, or error
+
+Rules:
+
+- The original source is never mutated by an edit operation.
+- A new operation clears the redo branch and creates a new revision snapshot.
+- Undo and redo replay operations from the original source and update duration and peaks.
+- Export serialization contains only the source revision and validated operations; it does
+  not contain decoded audio buffers, waveform pixels, or executable filter text.
+
+### HeaderPopoverState
+
+Represents transient browser-only state for the top-right Help and Account controls.
+
+Fields:
+
+- openPopover: `help`, `account`, or `null`
+- returnFocusTarget: the control that opened the current popover
+- sessionLabel: user-facing local-session status
+- helpContentVersion: version of the displayed shortcut/action guidance
+
+Rules:
+
+- The state is transient and is not persisted or sent to the server.
+- Only one popover can be open at a time.
+- Escape and outside activation close the popover and return focus to its trigger.
+- Account content must not imply authentication, profile storage, or cloud account state
+  in the MVP.
+
 ### ExportJob
 
 Represents a final render or conversion task.
 
 Fields:
+
+- jobId: unique export identifier
+- projectId: source project
+- status: queued, running, succeeded, failed, or cancelled
+- sourceFileId: source artifact reference
+- targetFormat: wav, mp3, flac, ogg, or aac
+- targetBitrate or qualityPreset: selected output quality metadata
+- renderMode: preserve-format or convert
+- requestedAt: timestamp
+- startedAt: timestamp
+- completedAt: timestamp
+- outputFileId: object reference to the final output artifact
+- errorMessage: human-readable issue description
+- progressPercent: integer from 0 to 100
+
+Relationships:
+
+- One project has many export jobs
+- One export job produces one output artifact
 
 ### ProcessingUpdate
 
@@ -99,24 +160,12 @@ Internal worker update containing `jobId`, expected revision, status, stage, pro
 and an optional error category. Updates use compare-and-set semantics so stale retries
 cannot move a terminal job backward.
 
-- id: unique job identifier
-- projectId: source project
-- status: queued, running, succeeded, failed, cancelled
-- sourceFileId: source artifact reference
-- targetFormat: e.g. mp3, wav, flac, ogg, aac
-- targetBitrate or qualityPreset: selected output quality metadata
-- renderMode: preserve-format or convert
-- requestedAt: timestamp
-- startedAt: timestamp
-- completedAt: timestamp
-- outputFileId: object reference to final output artifact
-- errorMessage: human-readable issue description
-- progressPercent: integer when available
-
-Relationships:
-
-- One project has many export jobs
-- One export job produces one output artifact
+- expectedRevision: integer used for compare-and-set updates
+- status: queued, running, succeeded, failed, or cancelled
+- stage: queued, validating, rendering, finalizing, succeeded, or failed
+- progressPercent: bounded integer from 0 to 100
+- errorCategory: optional safe category for a failed update
+- updatedAt: timestamp
 
 ### ProcessingState
 
@@ -138,6 +187,8 @@ Relationships:
 
 - Projects must reference a valid source file before preview or export can proceed.
 - Edit operations must be bounded by the source audio duration and selected region.
+- Operation count and numeric parameters must remain within the configured policy limits.
+- Selection start and end must be finite, ordered, and bounded by the current timeline.
 - Export jobs must specify a valid target format and appropriate quality settings for that format.
 - File validation must reject unsupported MIME types or malformed files before the project becomes ready.
 - Job progress must never exceed 100% and must be reset properly on retry.
