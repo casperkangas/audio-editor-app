@@ -120,7 +120,7 @@ export async function createPrivateDownloadUrl(
       validUntil: Math.min(validUntil, signedToken.validUntil),
     });
 
-    return result.presignedUrl;
+    return result.presignedUrl + "&download=1";
   } catch {
     throw new BlobAccessError();
   }

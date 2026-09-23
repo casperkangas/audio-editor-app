@@ -419,6 +419,7 @@ export function createRedisJobStore(
   if (!url) throw new Error("REDIS_URL is required");
 
   const client = createClient({ url });
+  client.on("error", (err) => console.warn("Redis JobStore Error:", err));
   void client.connect();
   return new RedisJobStore(client as RedisClient);
 }
