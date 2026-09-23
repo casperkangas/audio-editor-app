@@ -72,6 +72,8 @@ npx vercel --prod
 
 Use `npm run dev` in `apps/web` for frontend-only work. Use `npx vercel dev` in `apps/web` when testing frontend + API + Blob together.
 
+`NODE_PATH=apps/web/node_modules npx tsx workers/audio-export/start-worker.ts`
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)

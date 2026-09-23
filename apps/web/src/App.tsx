@@ -1,4 +1,4 @@
-﻿import { useRef, useCallback, useEffect, useState } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { upload } from "@vercel/blob/client";
 import { useEditor } from "./lib/useEditor";
@@ -114,11 +114,16 @@ function App() {
       globalThis.crypto?.randomUUID?.() ?? `project_${Date.now()}`;
 
     try {
-      const blob = await upload(file.name, file, {
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "");
+      const blob = await upload(`audio/source/${projectId}-${safeName}`, file, {
         access: "private",
         handleUploadUrl: "/api/upload",
         contentType: file.type,
-        clientPayload: JSON.stringify({ projectId, sessionId }),
+        clientPayload: JSON.stringify({
+          projectId,
+          sessionId,
+          sourceRevision: editor.sourceRevision + 1,
+        }),
       });
 
       await editor.loadFile(file);

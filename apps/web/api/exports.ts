@@ -100,49 +100,49 @@ export function createExportHandler(dependencies: ExportRouteDependencies) {
       });
     }
 
-    const project = await dependencies.jobStore.getProjectSession(
-      parsed.value.projectId,
-      sessionId,
-    );
-    if (!project) {
-      const error = toExportApiError("UNAUTHORIZED");
-      return response.status(error.status).json({
-        errorCode: error.errorCode,
-        error: error.message,
-      });
-    }
-
-    if (
-      project.sourceBlobKey !== parsed.value.sourceBlobKey ||
-      project.sourceRevision !== parsed.value.sourceRevision
-    ) {
-      const error = toExportApiError("SOURCE_NOT_FOUND");
-      return response.status(error.status).json({
-        errorCode: error.errorCode,
-        error: error.message,
-      });
-    }
-
-    const operations = validateEditOperations(
-      parsed.value.operations,
-      project.durationSeconds,
-    );
-    if (!operations.valid) {
-      return response.status(400).json({
-        errorCode: operations.errorCode,
-        error: operations.message,
-      });
-    }
-
-    const settings = validateExportSettings(parsed.value.settings);
-    if (!settings.valid) {
-      return response.status(400).json({
-        errorCode: settings.errorCode,
-        error: settings.message,
-      });
-    }
-
     try {
+      const project = await dependencies.jobStore.getProjectSession(
+        parsed.value.projectId,
+        sessionId,
+      );
+      if (!project) {
+        const error = toExportApiError("UNAUTHORIZED");
+        return response.status(error.status).json({
+          errorCode: error.errorCode,
+          error: error.message,
+        });
+      }
+
+      if (
+        project.sourceBlobKey !== parsed.value.sourceBlobKey ||
+        project.sourceRevision !== parsed.value.sourceRevision
+      ) {
+        const error = toExportApiError("SOURCE_NOT_FOUND");
+        return response.status(error.status).json({
+          errorCode: error.errorCode,
+          error: error.message,
+        });
+      }
+
+      const operations = validateEditOperations(
+        parsed.value.operations,
+        project.durationSeconds,
+      );
+      if (!operations.valid) {
+        return response.status(400).json({
+          errorCode: operations.errorCode,
+          error: operations.message,
+        });
+      }
+
+      const settings = validateExportSettings(parsed.value.settings);
+      if (!settings.valid) {
+        return response.status(400).json({
+          errorCode: settings.errorCode,
+          error: settings.message,
+        });
+      }
+
       await dependencies.lookupBlob({
         projectId: parsed.value.projectId,
         sessionId,
@@ -169,10 +169,7 @@ export function createExportHandler(dependencies: ExportRouteDependencies) {
       try {
         await dependencies.queue.dispatch(job.jobId);
       } catch {
-        await dependencies.jobStore.removeQueued?.(
-          job.jobId,
-          job.projectId,
-        );
+        await dependencies.jobStore.removeQueued?.(job.jobId, job.projectId);
         const error = toExportApiError("QUEUE_UNAVAILABLE");
         return response.status(error.status).json({
           errorCode: error.errorCode,
@@ -187,8 +184,7 @@ export function createExportHandler(dependencies: ExportRouteDependencies) {
         progressPercent: job.progressPercent,
         message: "Preparing export",
       });
-    } 
-    catch (error) {
+    } catch (error) {
       const errorE = toUnexpectedExportError();
       if (error instanceof DuplicateActiveJobError) {
         const duplicate = toExportApiError("DUPLICATE_ACTIVE_JOB");
