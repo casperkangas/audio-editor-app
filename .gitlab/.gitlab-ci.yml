@@ -27,18 +27,21 @@ install:
   script:
     - cd apps/web && npm ci
   when: manual
+  allow_failure: false
 
 lint:
   stage: lint
   needs: [install]
   script:
     - cd apps/web && npm run lint
+  allow_failure: false
 
 unit-tests:
   stage: test
   needs: [lint]
   script:
     - cd apps/web && npx vitest run tests/unit --reporter=default --reporter=junit --outputFile=unit-test-results.xml
+  allow_failure: false
   artifacts:
     when: always
     reports:
@@ -49,6 +52,7 @@ contract-tests:
   needs: [lint]
   script:
     - cd apps/web && npx vitest run tests/contract --reporter=default --reporter=junit --outputFile=contract-test-results.xml
+  allow_failure: false
   artifacts:
     when: always
     reports:
@@ -59,6 +63,7 @@ build:
   needs: [unit-tests, contract-tests]
   script:
     - cd apps/web && npm run build
+  allow_failure: false
   artifacts:
     paths:
       - apps/web/dist/
