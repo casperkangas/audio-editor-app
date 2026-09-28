@@ -100,7 +100,7 @@ export interface EditorState {
 }
 
 export interface EditorActions {
-  loadFile: (file: File) => Promise<void>;
+  loadFile: (file: File) => Promise<boolean>;
   clearFile: () => void;
   play: () => void;
   pause: () => void;
@@ -182,7 +182,7 @@ export function useEditor(): EditorState & EditorActions {
     const result = validateAudioFile(file);
     if (!result.valid) {
       setError(result.reason);
-      return;
+      return false;
     }
     setLoading(true);
     try {
@@ -202,10 +202,12 @@ export function useEditor(): EditorState & EditorActions {
       setNotice(
         "Audio loaded. Select a region of the waveform to start editing.",
       );
+      return true;
     } catch {
       setError(
         "Could not decode the audio file. It may be corrupt or use an unsupported codec.",
       );
+      return false;
     } finally {
       setLoading(false);
     }

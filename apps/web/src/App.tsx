@@ -114,6 +114,10 @@ function App() {
       globalThis.crypto?.randomUUID?.() ?? `project_${Date.now()}`;
 
     try {
+      const loaded = await editor.loadFile(file);
+      if (!loaded) return;
+
+      setUploading(true);
       const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "");
       const blob = await upload(`audio/source/${projectId}-${safeName}`, file, {
         access: "private",
@@ -126,7 +130,6 @@ function App() {
         }),
       });
 
-      await editor.loadFile(file);
       setUploadSession({
         projectId,
         sessionId,
