@@ -1,3 +1,7 @@
+
+type EffectTemplate =
+  | { readonly type: "volume"; readonly gain: number }
+  | { readonly type: "fade-in" | "fade-out" };
 import type { ExportOperationSnapshot } from "../../apps/web/api/_lib/export.validation.js";
 
 export interface SourceRange {
@@ -91,106 +95,87 @@ function readRange(
   return { startTime, endTime };
 }
 
-function splitAt(
+function timelineDuration(segments: readonly MutableSegment[]): number {
+  return segments.reduce(
+    (duration, segment) => duration + segment.endTime - segment.startTime,
+    0,
+  );
+}
+
+function sliceTimeline(
   segments: readonly MutableSegment[],
-  splitTime: number,
+  range: SourceRange,
 ): MutableSegment[] {
   const result: MutableSegment[] = [];
-  for (const segment of segments) {
-    if (splitTime <= segment.startTime || splitTime >= segment.endTime) {
-      result.push({ ...segment, effects: [...segment.effects] });
-      continue;
-    }
+  let timelineStart = 0;
 
-    result.push(
-      {
-        startTime: segment.startTime,
-        endTime: splitTime,
-        effects: clipEffects(segment.effects, {
-          startTime: segment.startTime,
-          endTime: splitTime,
-        }),
-      },
-      {
-        startTime: splitTime,
-        endTime: segment.endTime,
-        effects: clipEffects(segment.effects, {
-          startTime: splitTime,
-          endTime: segment.endTime,
-        }),
-      },
+  for (const segment of segments) {
+    const segmentDuration = segment.endTime - segment.startTime;
+    const startTime = Math.max(range.startTime, timelineStart);
+    const endTime = Math.min(
+      range.endTime,
+      timelineStart + segmentDuration,
     );
-  }
-  return result;
-}
-
-function retainRange(
-  segments: readonly MutableSegment[],
-  range: SourceRange,
-): MutableSegment[] {
-  const result: MutableSegment[] = [];
-  for (const segment of segments) {
-    const startTime = Math.max(segment.startTime, range.startTime);
-    const endTime = Math.min(segment.endTime, range.endTime);
     if (startTime < endTime) {
+      const sourceStartTime =
+        segment.startTime + (startTime - timelineStart);
+      const sourceEndTime = segment.startTime + (endTime - timelineStart);
       result.push({
-        startTime,
-        endTime,
-        effects: clipEffects(segment.effects, { startTime, endTime }),
+        startTime: sourceStartTime,
+        endTime: sourceEndTime,
+        effects: clipEffects(segment.effects, {
+          startTime: sourceStartTime,
+          endTime: sourceEndTime,
+        }),
       });
     }
+    timelineStart += segmentDuration;
+    if (timelineStart >= range.endTime) break;
   }
   return result;
 }
 
-function removeRange(
+function removeTimelineRange(
   segments: readonly MutableSegment[],
   range: SourceRange,
 ): MutableSegment[] {
-  const result: MutableSegment[] = [];
-  for (const segment of segments) {
-    if (
-      range.endTime <= segment.startTime ||
-      range.startTime >= segment.endTime
-    ) {
-      result.push({ ...segment, effects: [...segment.effects] });
-      continue;
-    }
-
-    if (segment.startTime < range.startTime) {
-      const endTime = Math.min(range.startTime, segment.endTime);
-      result.push({
-        startTime: segment.startTime,
-        endTime,
-        effects: clipEffects(segment.effects, {
-          startTime: segment.startTime,
-          endTime,
-        }),
-      });
-    }
-    if (range.endTime < segment.endTime) {
-      const startTime = Math.max(range.endTime, segment.startTime);
-      result.push({
-        startTime,
-        endTime: segment.endTime,
-        effects: clipEffects(segment.effects, {
-          startTime,
-          endTime: segment.endTime,
-        }),
-      });
-    }
-  }
-  return result;
+  const duration = timelineDuration(segments);
+  return [
+    ...sliceTimeline(segments, { startTime: 0, endTime: range.startTime }),
+    ...sliceTimeline(segments, { startTime: range.endTime, endTime: duration }),
+  ];
 }
 
 function addEffect(
   segments: readonly MutableSegment[],
-  effect: RenderEffect,
+  range: SourceRange,
+  effect: EffectTemplate,
 ): MutableSegment[] {
-  return segments.map((segment) => ({
-    ...segment,
-    effects: [...segment.effects, ...clipEffects([effect], segment)],
-  }));
+  const result: MutableSegment[] = [];
+  let timelineStart = 0;
+
+  for (const segment of segments) {
+    const segmentDuration = segment.endTime - segment.startTime;
+    const overlapStart = Math.max(range.startTime, timelineStart);
+    const overlapEnd = Math.min(
+      range.endTime,
+      timelineStart + segmentDuration,
+    );
+    const effects = [...segment.effects];
+    if (overlapStart < overlapEnd) {
+      const startTime = segment.startTime + (overlapStart - timelineStart);
+      const endTime = segment.startTime + (overlapEnd - timelineStart);
+      effects.push(
+        effect.type === "volume"
+          ? { ...effect, startTime, endTime }
+          : { ...effect, startTime, duration: endTime - startTime },
+      );
+    }
+    result.push({ ...segment, effects });
+    timelineStart += segmentDuration;
+  }
+
+  return result;
 }
 
 function validateDuration(durationSeconds: number): void {
@@ -210,31 +195,40 @@ export function createRenderPlan(
   let segments: MutableSegment[] = [
     { startTime: 0, endTime: durationSeconds, effects: [] },
   ];
+  let currentDuration = durationSeconds;
 
   for (const operation of operations) {
     switch (operation.type) {
-      case "trim":
-        segments = retainRange(segments, readRange(operation, durationSeconds));
+      case "trim": {
+        const range = readRange(operation, currentDuration);
+        segments = sliceTimeline(segments, range);
+        currentDuration = range.endTime - range.startTime;
         break;
+      }
       case "cut":
-      case "delete":
-        segments = removeRange(segments, readRange(operation, durationSeconds));
+      case "delete": {
+        const range = readRange(operation, currentDuration);
+        segments = removeTimelineRange(segments, range);
+        currentDuration -= range.endTime - range.startTime;
         break;
+      }
       case "split": {
         const splitTime = readNumber(operation, "at");
-        if (splitTime <= 0 || splitTime >= durationSeconds) {
+        if (splitTime <= 0 || splitTime >= currentDuration) {
           throw new RenderPlanError(
             "INVALID_OPERATION",
             `Operation ${operation.id} is outside the source duration.`,
           );
         }
-        segments = splitAt(segments, splitTime).filter(
-          (segment) => segment.endTime <= splitTime,
-        );
+        segments = sliceTimeline(segments, {
+          startTime: 0,
+          endTime: splitTime,
+        });
+        currentDuration = splitTime;
         break;
       }
       case "volume": {
-        const range = readRange(operation, durationSeconds);
+        const range = readRange(operation, currentDuration);
         const gain = readNumber(operation, "gain");
         if (gain < 0 || gain > 2) {
           throw new RenderPlanError(
@@ -242,7 +236,7 @@ export function createRenderPlan(
             `Operation ${operation.id} has an invalid gain.`,
           );
         }
-        segments = addEffect(segments, { ...range, type: "volume", gain });
+        segments = addEffect(segments, range, { type: "volume", gain });
         break;
       }
       case "fade-in":
@@ -252,18 +246,18 @@ export function createRenderPlan(
         if (
           startTime < 0 ||
           duration <= 0 ||
-          startTime + duration > durationSeconds
+          startTime + duration > currentDuration
         ) {
           throw new RenderPlanError(
             "INVALID_OPERATION",
             `Operation ${operation.id} is outside the source duration.`,
           );
         }
-        segments = addEffect(segments, {
-          type: operation.type,
-          startTime,
-          duration,
-        });
+        segments = addEffect(
+          segments,
+          { startTime, endTime: startTime + duration },
+          { type: operation.type },
+        );
         break;
       }
       default:
@@ -275,7 +269,7 @@ export function createRenderPlan(
   }
 
   return {
-    durationSeconds,
+    durationSeconds: currentDuration,
     segments: segments.map((segment) => ({
       ...segment,
       effects: [...segment.effects],
