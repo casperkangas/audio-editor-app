@@ -38,7 +38,7 @@ export class BlobAccessError extends Error {
   }
 }
 
-function isSafeBlobKey(key: string, kind: OwnedBlobKind): boolean {
+export function isSafeBlobKey(key: string, kind: OwnedBlobKind): boolean {
   const prefix = kind === "source" ? SOURCE_PREFIX : EXPORT_PREFIX;
 
   return (
@@ -120,7 +120,7 @@ export async function createPrivateDownloadUrl(
       validUntil: Math.min(validUntil, signedToken.validUntil),
     });
 
-    return result.presignedUrl;
+    return result.presignedUrl + "&download=1";
   } catch {
     throw new BlobAccessError();
   }

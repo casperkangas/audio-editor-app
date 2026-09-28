@@ -41,7 +41,6 @@ export function isAllowedAudioFilename(pathname: string): boolean {
 
   return Boolean(
     filename &&
-    !filename.includes("/") &&
     !filename.includes("\\") &&
     !filename.includes("..") &&
     extension &&

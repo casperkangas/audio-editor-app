@@ -17,7 +17,10 @@ import type { ExportStatusResponse } from "../_lib/export.validation.js";
 
 export interface JobStatusRouteDependencies {
   jobStore: JobStore;
-  createDownloadUrl: (context: BlobAccessContext) => Promise<string>;
+  createDownloadUrl: (
+    context: BlobAccessContext,
+    filename?: string,
+  ) => Promise<string>;
 }
 
 function getSessionId(request: VercelRequest): string | null {
@@ -102,16 +105,29 @@ export function createJobStatusHandler(
     try {
       let downloadUrl: string | null = null;
       if (job.status === "succeeded" && job.outputBlobKey) {
-        downloadUrl = await dependencies.createDownloadUrl({
-          projectId: job.projectId,
-          sessionId,
-          reference: {
+        const sourceParts = job.sourceBlobKey.split("-");
+        const originalName = sourceParts.slice(1).join("-") || "edited-audio";
+        const originalBase = originalName.includes(".")
+          ? originalName.substring(0, originalName.lastIndexOf("."))
+          : originalName;
+        const outputExt = job.outputBlobKey.includes(".")
+          ? job.outputBlobKey.substring(job.outputBlobKey.lastIndexOf("."))
+          : "";
+        const downloadFilename = `${originalBase}${outputExt}`;
+
+        downloadUrl = await dependencies.createDownloadUrl(
+          {
             projectId: job.projectId,
             sessionId,
-            key: job.outputBlobKey,
-            kind: "export",
+            reference: {
+              projectId: job.projectId,
+              sessionId,
+              key: job.outputBlobKey,
+              kind: "export",
+            },
           },
-        });
+          downloadFilename,
+        );
       }
 
       return response.status(200).json(toStatusResponse(job, downloadUrl));
@@ -137,7 +153,8 @@ export default async function handler(
 
   defaultHandler ??= createJobStatusHandler({
     jobStore: createRedisJobStore(),
-    createDownloadUrl: (context) => createPrivateDownloadUrl(context),
+    createDownloadUrl: (context, filename) =>
+      createPrivateDownloadUrl(context, undefined, undefined, filename),
   });
   return defaultHandler(request, response);
 }

@@ -22,6 +22,7 @@ export function createRedisExportQueue(
   if (!url) throw new Error("REDIS_URL is required");
 
   const client = createClient({ url });
+  client.on("error", (err) => console.warn("Redis Queue Error:", err));
   void client.connect();
   return new RedisExportQueue(client as RedisClient);
 }

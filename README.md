@@ -15,9 +15,9 @@ Editing is non-destructive and runs entirely in the browser. Final rendering and
 
 ```
 swcon2627/
-├── .gitlab/                      # CI pipeline
+├── .gitlab/                      # GitLab CI configuration and pipeline stages
 ├── .github/
-│   └── skills/                   # Skillset for AI tools
+│   └── skills/                   # AI workflow and specification skills
 │       ├── speckit-analyze/
 │       ├── speckit-checklist/
 │       ├── speckit-clarify/
@@ -28,7 +28,7 @@ swcon2627/
 │       ├── speckit-specify/
 │       ├── speckit-tasks/
 │       └── speckit-taskstoissues/
-├── .specify/                     # Specify configuration (TODO: explain)
+├── .specify/                     # Spec workflow configuration and templates
 │   ├── integrations/
 │   ├── memory/
 │   ├── scripts/
@@ -38,10 +38,24 @@ swcon2627/
 │   ├── init-options.json
 │   └── integration.json
 ├── apps/
-│   └── web/                      # Website source & unit tests
+│   └── web/                      # Vite + React app and API surface
+│       ├── api/
+│       │   ├── _lib/
+│       │   ├── jobs/
+│       │   ├── exports.ts
+│       │   ├── upload.ts
+│       │   └── upload.validation.ts
 │       ├── public/
 │       ├── src/
+│       │   ├── components/
+│       │   ├── hooks/
+│       │   ├── lib/
+│       │   ├── types/
+│       │   └── ...
 │       ├── tests/
+│       │   ├── contract/
+│       │   ├── unit/
+│       │   └── setup.ts
 │       ├── .gitignore
 │       ├── eslint.config.js
 │       ├── index.html
@@ -52,14 +66,23 @@ swcon2627/
 │       ├── tsconfig.json
 │       ├── tsconfig.node.json
 │       └── vite.config.ts
-├── sample-sounds/                # Sample audio files, mainly for tests
-├── specs/                        # Documentation
-│   ├── checklists/
-│   ├── contracts/
-│   ├── data-model.md
-│   ├── plan.md
-│   ├── quickstart.md
-│   ├── research.md
-│   └── spec.md
-└── README.md
+├── sample-sounds/                # Test and demo audio fixtures
+├── specs/
+│   └── 001-audio-editor-converter/
+│       ├── checklists/
+│       ├── contracts/
+│       ├── data-model.md
+│       ├── plan.md
+│       ├── quickstart.md
+│       ├── research.md
+│       ├── spec.md
+│       └── tasks.md
+├── workers/
+│   └── audio-export/
+│       ├── cleanup.ts
+│       ├── ffmpeg.ts
+│       ├── render-plan.ts
+│       └── worker.ts
+├── README.md
+└── .gitignore
 ```

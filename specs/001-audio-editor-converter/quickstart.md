@@ -5,7 +5,7 @@
 - Node.js and npm installed.
 - `apps/web` dependencies installed with `npm install`.
 - A Vercel Blob store and `BLOB_READ_WRITE_TOKEN` configured for the API.
-- The selected durable job store and queue/worker dispatch credentials configured.
+- A Redis instance and connection credentials configured for the job store and queue adapter.
 - An FFmpeg/ffprobe-capable worker with access to private Blob objects.
 - A valid fixture such as `sample-sounds/example.wav`.
 - A browser capable of the Web Audio API and a viewport at least 768 pixels wide for
@@ -99,7 +99,7 @@ clear feedback during upload, editing, export, and errors.
 
 ## Ownership Handoff
 
-- Casper: API routes, Blob access policy, job-store/queue adapters, worker deployment,
+- Casper: API routes, Blob access policy, Redis adapter integration, worker deployment,
   and retention configuration.
 - Jonas: serialization of the edit plan and browser state contract feeding export.
 - Tomas: export controls, progress states, retry/download interaction, and error copy.

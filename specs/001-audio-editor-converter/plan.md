@@ -25,8 +25,9 @@ profiles, and account persistence are explicitly out of scope.
 **Language/Version**: TypeScript 6 / React 19 in Vite; Node.js-compatible Vercel API handlers; FFmpeg worker runtime.
 
 **Primary Dependencies**: React, Vite, TypeScript, `@vercel/blob` client/server APIs, `@vercel/node`,
-Web Audio API, FFmpeg/ffprobe in the worker, and a durable job store plus queue dispatch
-adapter. The existing `apps/web/api/upload.ts` remains the Blob upload-token boundary.
+Web Audio API, FFmpeg/ffprobe in the worker, and the Redis client already declared in
+`apps/web/package.json`. Redis provides the durable job store and queue-dispatch adapter
+for the MVP. The existing `apps/web/api/upload.ts` remains the Blob upload-token boundary.
 
 **Storage**: Private Vercel Blob for source and generated audio objects. Redis is the
 current durable job/session store and owns atomic job revisions, leases, and active-job
@@ -34,11 +35,10 @@ guards; the queue transports job identifiers to the worker. Browser memory remai
 authoritative for the active edit history and sends a serializable operation list and
 source revision at export time.
 
-download flow, and ffprobe/audio fixture smoke tests in the worker environment.
-**Testing**: Vitest for edit operations, history, serialization, request validation, and
-job state transitions; integration tests for Blob token and route contracts with mocked
-adapters; Playwright for upload-to-download and responsive interaction flows; and
-ffprobe/audio fixture smoke tests in the worker environment.
+**Testing**: Paul-Henrik owns validation logic, Vitest request/state tests, integration tests
+for Blob token and route contracts, Playwright upload-to-download coverage, ffprobe/audio
+fixture smoke tests, and CI gates. Casper owns API behavior needed to make those tests pass;
+Tomas and Jonas own the frontend and browser-editing behavior exercised by the tests.
 
 **Target Platform**: Browser app and short-lived API handlers hosted on Vercel; FFmpeg runs
 outside ordinary Vercel request handlers in a queue-triggered worker with access to the
@@ -193,6 +193,38 @@ second server application or duplicating the existing editor state.
 - Validate Help and Account popovers with keyboard and pointer interaction, Escape dismissal,
     focus return, viewport widths from 768px through 2560px, and no navigation or network
     request caused by the Account control.
+
+## Analysis-Driven Follow-up Plan
+
+The current feature specification is internally consistent with the constitution and has no CRITICAL requirement conflicts. The remaining work is primarily verification-driven: the implementation is largely in place, but the project still needs evidence for conversion behavior, worker boundary correctness, recovery paths, and release validation.
+
+### Immediate priority order
+
+1. Conversion contract validation
+   - Complete T023 and T024 to verify the payload contract for conversion requests and download metadata.
+   - Confirm that output format, bitrate, MIME type, extension, and error responses align between API validation and worker execution.
+
+2. Worker verification and contract confidence
+   - Complete T050, T051, and T052 to validate the worker queue contract, ffprobe integration, and recovery flows.
+   - Keep the worker boundary strict: no FFmpeg invocation inside Vercel request handlers.
+
+3. Security and recovery hardening
+   - Complete T030 and T031 for foreign-key rejection, retry logic, lease expiry, duplicate completion protection, and cleanup behavior.
+   - Use these tests as the release gate for user-upload safety and invalid-input handling.
+
+4. Deployment and evidence gates
+   - Complete T035, T036, and T038 to run the web validation commands, capture evidence for SC-005/SC-006/SC-007, and scan for credential leakage.
+   - Record the exact results in the quickstart and CI evidence trail before sign-off.
+
+5. Final ownership and UI handoff review
+   - Complete T028, T029, T053, T054, and T039 to confirm the frontend controls, progress UX, and ownership boundaries are all in place and documented.
+
+### Success conditions for the next milestone
+
+- All conversion and worker contract tests pass with verified output artifacts or safe terminal failures.
+- Invalid and malicious input paths fail before dispatch and never leak internal metadata.
+- The repository passes the required test, lint, build, and secret-scan gates.
+- The final handoff documentation matches the implementation boundaries defined in the constitution and plan.
 
 ## Complexity Tracking
 
