@@ -273,15 +273,19 @@ export function useEditor(): EditorState & EditorActions {
   }, [selection, pushOp]);
 
   const applySplitAction = useCallback(() => {
-    if (!requireSel(selection)) return;
-    // Split at the midpoint of the selection
-    const at = (selection.startTime + selection.endTime) / 2;
+    const at = selection
+      ? (selection.startTime + selection.endTime) / 2
+      : currentTime;
+    if (at <= 0 || at >= duration) {
+      setNotice("Click inside the waveform to choose a split point first.");
+      return;
+    }
     pushOp("split", { at } as SplitParams);
     setSelectionState(null);
     setNotice(
       `Split at ${at.toFixed(2)}s. The right segment was discarded. Undo to revert.`,
     );
-  }, [selection, pushOp]);
+  }, [currentTime, duration, selection, pushOp]);
 
   const applyFadeInAction = useCallback(() => {
     if (!requireSel(selection)) return;

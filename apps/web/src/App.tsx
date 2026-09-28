@@ -533,8 +533,11 @@ function App() {
                 <button
                   className="edit-button"
                   onClick={editor.applySplit}
-                  disabled={!editor.selection}
-                  title="Split at midpoint of selection"
+                  disabled={
+                    !editor.selection &&
+                    !(editor.currentTime > 0 && editor.currentTime < editor.duration)
+                  }
+                  title="Split at the playhead, or at the midpoint of a selection"
                 >
                   Split
                 </button>
