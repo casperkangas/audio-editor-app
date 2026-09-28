@@ -41,6 +41,26 @@ interface MutableSegment extends SourceRange {
   effects: RenderEffect[];
 }
 
+function clipEffects(
+  effects: readonly RenderEffect[],
+  range: SourceRange,
+): RenderEffect[] {
+  return effects.flatMap<RenderEffect>((effect) => {
+    const effectEnd =
+      effect.type === "volume"
+        ? effect.endTime
+        : effect.startTime + effect.duration;
+    const startTime = Math.max(effect.startTime, range.startTime);
+    const endTime = Math.min(effectEnd, range.endTime);
+    if (startTime >= endTime) return [];
+
+    if (effect.type === "volume") {
+      return [{ ...effect, startTime, endTime }];
+    }
+    return [{ ...effect, startTime, duration: endTime - startTime }];
+  });
+}
+
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -86,12 +106,18 @@ function splitAt(
       {
         startTime: segment.startTime,
         endTime: splitTime,
-        effects: [...segment.effects],
+        effects: clipEffects(segment.effects, {
+          startTime: segment.startTime,
+          endTime: splitTime,
+        }),
       },
       {
         startTime: splitTime,
         endTime: segment.endTime,
-        effects: [...segment.effects],
+        effects: clipEffects(segment.effects, {
+          startTime: splitTime,
+          endTime: segment.endTime,
+        }),
       },
     );
   }
@@ -107,7 +133,11 @@ function retainRange(
     const startTime = Math.max(segment.startTime, range.startTime);
     const endTime = Math.min(segment.endTime, range.endTime);
     if (startTime < endTime) {
-      result.push({ startTime, endTime, effects: [...segment.effects] });
+      result.push({
+        startTime,
+        endTime,
+        effects: clipEffects(segment.effects, { startTime, endTime }),
+      });
     }
   }
   return result;
@@ -128,17 +158,25 @@ function removeRange(
     }
 
     if (segment.startTime < range.startTime) {
+      const endTime = Math.min(range.startTime, segment.endTime);
       result.push({
         startTime: segment.startTime,
-        endTime: range.startTime,
-        effects: [...segment.effects],
+        endTime,
+        effects: clipEffects(segment.effects, {
+          startTime: segment.startTime,
+          endTime,
+        }),
       });
     }
     if (range.endTime < segment.endTime) {
+      const startTime = Math.max(range.endTime, segment.startTime);
       result.push({
-        startTime: range.endTime,
+        startTime,
         endTime: segment.endTime,
-        effects: [...segment.effects],
+        effects: clipEffects(segment.effects, {
+          startTime,
+          endTime: segment.endTime,
+        }),
       });
     }
   }
@@ -151,16 +189,7 @@ function addEffect(
 ): MutableSegment[] {
   return segments.map((segment) => ({
     ...segment,
-    effects:
-      effect.type === "volume"
-        ? segment.startTime < effect.endTime &&
-          segment.endTime > effect.startTime
-          ? [...segment.effects, effect]
-          : [...segment.effects]
-        : segment.startTime < effect.startTime + effect.duration &&
-            segment.endTime > effect.startTime
-          ? [...segment.effects, effect]
-          : [...segment.effects],
+    effects: [...segment.effects, ...clipEffects([effect], segment)],
   }));
 }
 
@@ -199,7 +228,9 @@ export function createRenderPlan(
             `Operation ${operation.id} is outside the source duration.`,
           );
         }
-        segments = splitAt(segments, splitTime);
+        segments = splitAt(segments, splitTime).filter(
+          (segment) => segment.endTime <= splitTime,
+        );
         break;
       }
       case "volume": {
