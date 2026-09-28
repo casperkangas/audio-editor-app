@@ -194,7 +194,11 @@ function App() {
             <div
               ref={headerPopover}
               id="header-popover"
-              className="header-popover"
+              className={`header-popover ${
+                activeHeaderPopover === "help"
+                  ? "header-popover-help"
+                  : "header-popover-account"
+              }`}
               role="dialog"
               aria-label={
                 activeHeaderPopover === "help" ? "Editor help" : "Session account"
