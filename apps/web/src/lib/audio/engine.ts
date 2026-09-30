@@ -24,12 +24,15 @@ export class AudioEngine {
   }
 
   async loadArrayBuffer(ab: ArrayBuffer): Promise<AudioBuffer> {
-    const ctx = this.getCtx();
-    const buf = await ctx.decodeAudioData(ab);
+    const buf = await this.decodeArrayBuffer(ab);
     this.buffer = buf;
     this.startOffset = 0;
     this._setState('idle');
     return buf;
+  }
+
+  async decodeArrayBuffer(ab: ArrayBuffer): Promise<AudioBuffer> {
+    return this.getCtx().decodeAudioData(ab);
   }
 
   loadBuffer(buf: AudioBuffer): void {
