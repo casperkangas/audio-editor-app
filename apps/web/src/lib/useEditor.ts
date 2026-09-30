@@ -30,6 +30,7 @@ import {
   canRedo as _canRedo,
 } from "./editing/history";
 import { validateAudioFile } from "./validation/validateAudioFile";
+import { MAX_FILE_SIZE_BYTES } from "../types";
 import type {
   EditHistory,
   EditOperation,
@@ -77,6 +78,47 @@ function replayOps(source: AudioBuffer, ops: EditOperation[]): AudioBuffer {
   return buf;
 }
 
+function encodeWav(buffer: AudioBuffer): Blob {
+  const channels = Math.min(2, buffer.numberOfChannels);
+  const bytesPerSample = 2;
+  const dataSize = buffer.length * channels * bytesPerSample;
+  const output = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(output);
+  const writeText = (offset: number, text: string) => {
+    for (let index = 0; index < text.length; index++) {
+      view.setUint8(offset + index, text.charCodeAt(index));
+    }
+  };
+
+  writeText(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeText(8, "WAVE");
+  writeText(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, buffer.sampleRate, true);
+  view.setUint32(28, buffer.sampleRate * channels * bytesPerSample, true);
+  view.setUint16(32, channels * bytesPerSample, true);
+  view.setUint16(34, 16, true);
+  writeText(36, "data");
+  view.setUint32(40, dataSize, true);
+
+  const channelData = Array.from({ length: channels }, (_, index) =>
+    buffer.getChannelData(index),
+  );
+  let offset = 44;
+  for (let frame = 0; frame < buffer.length; frame++) {
+    for (let channel = 0; channel < channels; channel++) {
+      const sample = Math.max(-1, Math.min(1, channelData[channel][frame]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+      offset += bytesPerSample;
+    }
+  }
+
+  return new Blob([output], { type: "audio/wav" });
+}
+
 export interface EditorState {
   // File
   fileName: string;
@@ -101,6 +143,7 @@ export interface EditorState {
 
 export interface EditorActions {
   loadFile: (file: File) => Promise<boolean>;
+  createMix: (files: File[]) => Promise<File>;
   clearFile: () => void;
   play: () => void;
   pause: () => void;
@@ -212,6 +255,53 @@ export function useEditor(): EditorState & EditorActions {
       setLoading(false);
     }
   }, []);
+
+  const createMix = useCallback(async (files: File[]) => {
+    const base = audioEngine.decodedBuffer;
+    if (!base) throw new Error("Load a project audio file before mixing in audio.");
+    if (!files.length) throw new Error("Choose at least one audio file to mix in.");
+
+    const additions: AudioBuffer[] = [];
+    for (const file of files) {
+      const validation = validateAudioFile(file);
+      if (!validation.valid) throw new Error(`${file.name}: ${validation.reason}`);
+      const decoded = await audioEngine.decodeArrayBuffer(await file.arrayBuffer());
+      if (decoded.duration <= 0 || decoded.duration > 2 * 60 * 60) {
+        throw new Error(`${file.name} must be less than two hours long.`);
+      }
+      additions.push(decoded);
+    }
+
+    const duration = Math.max(base.duration, ...additions.map((buffer) => buffer.duration));
+    const frameCount = Math.ceil(duration * base.sampleRate);
+    const expectedWavSize = 44 + frameCount * 2 * 2;
+    if (expectedWavSize > MAX_FILE_SIZE_BYTES) {
+      throw new Error("This mix would exceed the 50 MB project limit. Try shorter audio files.");
+    }
+
+    const offline = new OfflineAudioContext(2, frameCount, base.sampleRate);
+    const compressor = offline.createDynamicsCompressor();
+    compressor.threshold.value = -1;
+    compressor.knee.value = 0;
+    compressor.ratio.value = 12;
+    compressor.attack.value = 0.003;
+    compressor.release.value = 0.1;
+    compressor.connect(offline.destination);
+
+    for (const buffer of [base, ...additions]) {
+      const source = offline.createBufferSource();
+      source.buffer = buffer;
+      source.connect(compressor);
+      source.start(0);
+    }
+
+    const mixed = await offline.startRendering();
+    const projectStem = fileName.replace(/\.[^.]+$/, "");
+    const addedStems = files.map((file) => file.name.replace(/\.[^.]+$/, ""));
+    const outputName = `${[projectStem, ...addedStems].join("-mix-").replace(/[^a-zA-Z0-9._-]/g, "-")}.wav`;
+    const wav = encodeWav(mixed);
+    return new File([wav], outputName, { type: "audio/wav" });
+  }, [fileName]);
 
   const clearFile = useCallback(() => {
     audioEngine.stop();
@@ -384,6 +474,7 @@ export function useEditor(): EditorState & EditorActions {
     error,
     notice,
     loadFile,
+    createMix,
     clearFile,
     play,
     pause,

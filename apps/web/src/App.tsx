@@ -48,6 +48,7 @@ function createSessionId(): string {
 function App() {
   const editor = useEditor();
   const fileInput = useRef<HTMLInputElement>(null);
+  const mixInput = useRef<HTMLInputElement>(null);
   const helpButton = useRef<HTMLButtonElement>(null);
   const accountButton = useRef<HTMLButtonElement>(null);
   const headerPopover = useRef<HTMLDivElement>(null);
@@ -60,6 +61,7 @@ function App() {
     null,
   );
   const [uploading, setUploading] = useState(false);
+  const [mixing, setMixing] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [sessionId] = useState(createSessionId);
   const dragStart = useRef<number | null>(null);
@@ -152,6 +154,26 @@ function App() {
     setUploadSession(null);
     setUploadError(null);
     setExportOpen(false);
+  };
+
+  const handleMixFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setMixing(true);
+    setUploadError(null);
+    setExportOpen(false);
+    editor.pause();
+
+    try {
+      const mixedFile = await editor.createMix(Array.from(files));
+      setMixing(false);
+      await handleFile(mixedFile);
+    } catch (error) {
+      setUploadError(
+        error instanceof Error ? error.message : "Could not mix the selected audio files.",
+      );
+    } finally {
+      setMixing(false);
+    }
   };
 
   // ── Waveform interaction ──────────────────────────────────────────────
@@ -383,10 +405,10 @@ function App() {
         )}
 
         {/* Loading */}
-        {(uploading || editor.loading) && (
+        {(mixing || uploading || editor.loading) && (
           <div className="upload-card" style={{ minHeight: 180, gap: "14px" }}>
             <div className="upload-glyph">↻</div>
-            <p>{uploading ? "Uploading audio..." : "Decoding audio..."}</p>
+            <p>{mixing ? "Mixing audio into the project..." : uploading ? "Uploading audio..." : "Decoding audio..."}</p>
           </div>
         )}
 
@@ -404,6 +426,25 @@ function App() {
               </div>
               <button className="text-button" onClick={handleReplaceFile}>
                 Replace file
+              </button>
+              <input
+                ref={mixInput}
+                type="file"
+                accept="audio/*,.flac,.aac"
+                multiple
+                hidden
+                onChange={(event) => {
+                  void handleMixFiles(event.target.files);
+                  event.target.value = "";
+                }}
+              />
+              <button
+                className="edit-button"
+                type="button"
+                onClick={() => mixInput.current?.click()}
+                disabled={mixing || uploading || editor.loading}
+              >
+                Mix in audio
               </button>
             </div>
 
