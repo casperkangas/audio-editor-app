@@ -4,6 +4,7 @@ import type { EditOperation, ExportFormat, ExportStatus } from "../../types";
 interface ExportPanelProps {
   disabled?: boolean;
   duration: number;
+  sourceFilename: string;
   projectId: string;
   sessionId: string;
   sourceBlobKey: string;
@@ -26,6 +27,15 @@ const FORMAT_OPTIONS: {
 
 const BITRATE_OPTIONS = ["96k", "128k", "192k", "256k", "320k"];
 
+function stripUnsafeFilenameCharacters(value: string): string {
+  return Array.from(value)
+    .filter((character) => {
+      const code = character.charCodeAt(0);
+      return code >= 32 && code !== 127 && !'<>:"/\\|?*'.includes(character);
+    })
+    .join("");
+}
+
 interface JobStatusResponse {
   status: ExportStatus;
   progressPercent: number;
@@ -47,6 +57,7 @@ async function readResponse<T>(response: Response): Promise<T> {
 export default function ExportPanel({
   disabled = false,
   duration,
+  sourceFilename,
   projectId,
   sessionId,
   sourceBlobKey,
@@ -55,16 +66,23 @@ export default function ExportPanel({
   onClose,
 }: ExportPanelProps) {
   const [format, setFormat] = useState<ExportFormat>("mp3");
+  const [filename, setFilename] = useState(
+    () => sourceFilename.replace(/\.[^.]+$/, "") || "edited-audio",
+  );
   const [bitrate, setBitrate] = useState("192k");
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<ExportStatus>("idle");
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const selectedFmt = FORMAT_OPTIONS.find((f) => f.value === format)!;
   const ready = duration > 0 && !disabled;
+  const safeFilename = stripUnsafeFilenameCharacters(filename)
+    .trim()
+    .replace(/\.[a-z0-9]{1,8}$/i, "")
+    .replace(/[. ]+$/g, "")
+    .slice(0, 100);
 
   useEffect(() => {
     if (!jobId) return;
@@ -85,7 +103,6 @@ export default function ExportPanel({
           setProgress(job.progressPercent);
           setMessage(job.message);
           if (job.status === "succeeded") {
-            setDownloadUrl(job.downloadUrl ?? null);
             return;
           }
           if (job.status === "failed" || job.status === "cancelled") {
@@ -117,7 +134,6 @@ export default function ExportPanel({
   const handleExport = async () => {
     if (!ready || jobId) return;
     setError(null);
-    setDownloadUrl(null);
     setProgress(0);
     setStatus("queued");
     setMessage("Preparing export");
@@ -161,7 +177,30 @@ export default function ExportPanel({
     setProgress(0);
     setMessage("");
     setError(null);
-    setDownloadUrl(null);
+  };
+
+  const handleDownload = () => {
+    if (!jobId || !safeFilename) return;
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/api/download";
+    form.hidden = true;
+
+    for (const [name, value] of Object.entries({
+      jobId,
+      sessionId,
+      filename: safeFilename,
+    })) {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = value;
+      form.append(input);
+    }
+
+    document.body.append(form);
+    form.submit();
+    form.remove();
   };
 
   return (
@@ -193,6 +232,24 @@ export default function ExportPanel({
         </select>
       </div>
 
+      <div className="export-field">
+        <label htmlFor="export-filename" className="export-label">
+          File name
+        </label>
+        <div className="export-filename-control">
+          <input
+            id="export-filename"
+            value={filename}
+            onChange={(event) => setFilename(event.target.value)}
+            maxLength={120}
+            disabled={status === "queued" || status === "running"}
+            className="export-select"
+            autoComplete="off"
+          />
+          <span aria-hidden="true">.{format}</span>
+        </div>
+      </div>
+
       {selectedFmt.supportsBitrate && (
         <div className="export-field">
           <label htmlFor="export-bitrate" className="export-label">
@@ -220,10 +277,15 @@ export default function ExportPanel({
           <progress value={progress} max={100} />
           <span>{progress}%</span>
         </div>
-      ) : status === "succeeded" && downloadUrl ? (
-        <a className="primary-button" href={downloadUrl} download>
+      ) : status === "succeeded" && jobId ? (
+        <button
+          className="primary-button"
+          type="button"
+          onClick={handleDownload}
+          disabled={!safeFilename}
+        >
           Download {format.toUpperCase()} <span>↓</span>
-        </a>
+        </button>
       ) : (
         <button
           type="button"

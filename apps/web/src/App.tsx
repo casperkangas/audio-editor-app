@@ -634,6 +634,7 @@ function App() {
         {exportOpen && uploadSession && (
           <ExportPanel
             duration={editor.duration}
+            sourceFilename={editor.fileName}
             disabled={editor.loading || uploading}
             projectId={uploadSession.projectId}
             sessionId={uploadSession.sessionId}
