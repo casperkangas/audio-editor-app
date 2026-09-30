@@ -20,8 +20,9 @@ function peaksToHeights(peaks: Float32Array | null, count: number): number[] {
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  const wholeSeconds = Math.floor(seconds % 60);
+  const hundredths = Math.floor((seconds % 1) * 100);
+  return `${String(m).padStart(2, "0")}:${String(wholeSeconds).padStart(2, "0")}.${String(hundredths).padStart(2, "0")}`;
 }
 
 const BAR_COUNT = 90;
@@ -114,6 +115,10 @@ function App() {
       globalThis.crypto?.randomUUID?.() ?? `project_${Date.now()}`;
 
     try {
+      const loaded = await editor.loadFile(file);
+      if (!loaded) return;
+
+      setUploading(true);
       const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "");
       const blob = await upload(`audio/source/${projectId}-${safeName}`, file, {
         access: "private",
@@ -126,7 +131,6 @@ function App() {
         }),
       });
 
-      await editor.loadFile(file);
       setUploadSession({
         projectId,
         sessionId,
@@ -255,7 +259,11 @@ function App() {
             <div
               ref={headerPopover}
               id="header-popover"
-              className="header-popover"
+              className={`header-popover ${
+                activeHeaderPopover === "help"
+                  ? "header-popover-help"
+                  : "header-popover-account"
+              }`}
               role="dialog"
               aria-label={
                 activeHeaderPopover === "help"
@@ -405,6 +413,7 @@ function App() {
                 <span>00:00</span>
                 <span>{formatTime(editor.duration * 0.25)}</span>
                 <span>{formatTime(editor.duration * 0.5)}</span>
+                <span>{formatTime(editor.duration * 0.75)}</span>
                 <span>{formatTime(editor.duration)}</span>
               </div>
               <div
@@ -529,8 +538,11 @@ function App() {
                 <button
                   className="edit-button"
                   onClick={editor.applySplit}
-                  disabled={!editor.selection}
-                  title="Split at midpoint of selection"
+                  disabled={
+                    !editor.selection &&
+                    !(editor.currentTime > 0 && editor.currentTime < editor.duration)
+                  }
+                  title="Split at the playhead, or at the midpoint of a selection"
                 >
                   Split
                 </button>
@@ -541,6 +553,7 @@ function App() {
                   className="edit-button"
                   onClick={editor.applyFadeIn}
                   disabled={!editor.selection}
+                  title="Gradually increase the selected region from silence to its normal volume"
                 >
                   Fade in
                 </button>
@@ -548,6 +561,7 @@ function App() {
                   className="edit-button"
                   onClick={editor.applyFadeOut}
                   disabled={!editor.selection}
+                  title="Gradually decrease the selected region from its normal volume to silence"
                 >
                   Fade out
                 </button>
