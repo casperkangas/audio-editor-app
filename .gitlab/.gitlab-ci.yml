@@ -9,21 +9,39 @@ default:
     - export PATH="/home/system/.nvm/versions/node/v20.20.2/bin:$PATH"
 
 stages:
+  - install
   - lint
   - test
   - build
 
-lint-and-install:
-  when: manual
-  stage: lint
+cache:
+  key:
+    files:
+      - apps/web/package-lock.json
+    prefix: node20
+  paths:
+    - apps/web/node_modules/
+
+install:
+  stage: install
   script:
-    - cd apps/web && npm ci && npm run lint
+    - cd apps/web && npm ci
+  when: manual
+  allow_failure: false
+
+lint:
+  stage: lint
+  needs: [install]
+  script:
+    - cd apps/web && npm run lint
+  allow_failure: false
 
 unit-tests:
   stage: test
-  needs: [lint-and-install]
+  needs: [lint]
   script:
-    - cd apps/web && npm ci && npx vitest run tests/unit --reporter=default --reporter=junit --outputFile=unit-test-results.xml
+    - cd apps/web && npx vitest run tests/unit --reporter=default --reporter=junit --outputFile=unit-test-results.xml
+  allow_failure: false
   artifacts:
     when: always
     reports:
@@ -31,9 +49,10 @@ unit-tests:
 
 contract-tests:
   stage: test
-  needs: [lint-and-install]
+  needs: [lint]
   script:
-    - cd apps/web && npm ci && npx vitest run tests/contract --reporter=default --reporter=junit --outputFile=contract-test-results.xml
+    - cd apps/web && npx vitest run tests/contract --reporter=default --reporter=junit --outputFile=contract-test-results.xml
+  allow_failure: false
   artifacts:
     when: always
     reports:
@@ -43,7 +62,8 @@ build:
   stage: build
   needs: [unit-tests, contract-tests]
   script:
-    - cd apps/web && npm ci && npm run build
+    - cd apps/web && npm run build
+  allow_failure: false
   artifacts:
     paths:
       - apps/web/dist/
