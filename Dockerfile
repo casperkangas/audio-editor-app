@@ -1,13 +1,13 @@
-FROM node:20-alpine
+FROM node:slim
 
-# Install ffmpeg using Alpine's package manager
-RUN apk add --no-cache ffmpeg
+# Install ffmpeg using Debian's package manager
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Copy the apps/web package files to install dependencies
 COPY apps/web/package*.json ./apps/web/
-RUN cd apps/web && npm ci
+RUN cd apps/web && npm install
 
 # Copy the rest of the application
 COPY . .
