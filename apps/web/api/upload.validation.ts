@@ -1,3 +1,4 @@
+/// <reference types="node" />
 export const DEFAULT_MAX_UPLOAD_SIZE_BYTES = 50 * 1024 * 1024;
 
 export const ALLOWED_AUDIO_CONTENT_TYPES = [
@@ -10,6 +11,8 @@ export const ALLOWED_AUDIO_CONTENT_TYPES = [
   "audio/flac",
   "audio/x-flac",
   "audio/ogg",
+  "application/ogg",
+  "video/ogg",
   "audio/aac",
   "audio/x-aac",
   "audio/mp4",
