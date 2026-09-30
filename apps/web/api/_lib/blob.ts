@@ -165,13 +165,14 @@ export async function deletePrivateBlob(
   token?: string,
 ): Promise<void> {
   if (
-    !pathname.startsWith(EXPORT_PREFIX) ||
+    !(pathname.startsWith(EXPORT_PREFIX) || pathname.startsWith(SOURCE_PREFIX)) ||
     pathname.includes("..") ||
     pathname.includes("\\") ||
     pathname.includes("?") ||
     pathname.includes("#") ||
     pathname.includes("://") ||
-    pathname.length <= EXPORT_PREFIX.length
+    (pathname.startsWith(EXPORT_PREFIX) && pathname.length <= EXPORT_PREFIX.length) ||
+    (pathname.startsWith(SOURCE_PREFIX) && pathname.length <= SOURCE_PREFIX.length)
   ) {
     throw new BlobAccessError();
   }
