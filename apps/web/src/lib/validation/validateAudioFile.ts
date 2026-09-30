@@ -1,13 +1,20 @@
 // Supported audio MIME types (FR-002)
 export const SUPPORTED_MIME_TYPES = [
   "audio/mpeg",       // MP3
+  "audio/mp3",
+  "audio/x-mp3",
+  "audio/x-mpeg",
   "audio/wav",        // WAV
   "audio/x-wav",      // WAV (alternate)
   "audio/flac",       // FLAC
   "audio/x-flac",     // FLAC (alternate)
   "audio/ogg",        // OGG
+  "application/ogg",
+  "video/ogg",
   "audio/aac",        // AAC
   "audio/x-aac",      // AAC (alternate)
+  "audio/mp4",
+  "audio/x-m4a",
 ] as const;
 
 // Limits (FR-002, SC-006)
